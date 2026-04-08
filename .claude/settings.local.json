@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean:*)",
+      "Bash(mvn spring-boot:run -pl gaokao-web)",
+      "Bash(ping:*)",
+      "Bash(powershell:*)",
+      "Bash(set)",
+      "Bash(mvn spring-boot:run -pl gaokao-web -Dspring-boot.run.arguments=\"--spring.data.redis.host=192.168.100.128 --spring.redisson.address=redis://192.168.100.128:6379\")",
+      "WebFetch(domain:docs.langchain4j.dev)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill:*)",
+      "Bash(curl -s http://localhost:8088/actuator/health)",
+      "WebSearch",
+      "WebFetch(domain:help.aliyun.com)",
+      "Bash(mvn compile:*)",
+      "Bash(java -jar gaokao-web/target/gaokao-web-1.0.0.jar)",
+      "Bash(curl -s http://localhost:8088/doc.html)",
+      "Bash(findstr \"8088\")",
+      "Bash(tasklist)",
+      "Bash(findstr \"java\")",
+      "Bash(bash commit-plan.sh)"
+    ]
+  }
+}
