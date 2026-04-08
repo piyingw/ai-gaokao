@@ -1,0 +1,263 @@
+"""
+生成专业数据
+"""
+
+import json
+import os
+
+# 专业数据（基于教育部《普通高等学校本科专业目录》2024年版）
+MAJORS_DATA = [
+    # 工学 - 计算机类
+    {'id': 1, 'name': '计算机科学与技术', 'code': '080901', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 15000, 'gender_ratio': '7:3'},
+    {'id': 2, 'name': '软件工程', 'code': '080902', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 14000, 'gender_ratio': '7:3'},
+    {'id': 3, 'name': '网络工程', 'code': '080903', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 4, 'name': '信息安全', 'code': '080904K', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 16000, 'gender_ratio': '6:4'},
+    {'id': 5, 'name': '物联网工程', 'code': '080905', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '7:3'},
+    {'id': 6, 'name': '数字媒体技术', 'code': '080906', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    {'id': 7, 'name': '智能科学与技术', 'code': '080907T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 18000, 'gender_ratio': '7:3'},
+    {'id': 8, 'name': '空间信息与数字技术', 'code': '080908T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 9, 'name': '电子与计算机工程', 'code': '080909T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 14000, 'gender_ratio': '7:3'},
+    {'id': 10, 'name': '数据科学与大数据技术', 'code': '080910T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 17000, 'gender_ratio': '6:4'},
+    {'id': 11, 'name': '网络空间安全', 'code': '080911TK', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 16000, 'gender_ratio': '6:4'},
+    {'id': 12, 'name': '新媒体技术', 'code': '080912T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '4:6'},
+    {'id': 13, 'name': '电影制作', 'code': '080913T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 14, 'name': '保密技术', 'code': '080914TK', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '6:4'},
+    {'id': 15, 'name': '服务科学与工程', 'code': '080915T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '5:5'},
+    {'id': 16, 'name': '虚拟现实技术', 'code': '080916T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '6:4'},
+    {'id': 17, 'name': '区块链工程', 'code': '080917T', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 15000, 'gender_ratio': '7:3'},
+    {'id': 18, 'name': '密码科学与技术', 'code': '080918TK', 'category': '工学', 'sub_category': '计算机类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 14000, 'gender_ratio': '6:4'},
+    
+    # 工学 - 电子信息类
+    {'id': 20, 'name': '电子信息工程', 'code': '080701', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 21, 'name': '电子科学与技术', 'code': '080702', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '7:3'},
+    {'id': 22, 'name': '通信工程', 'code': '080703', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 23, 'name': '微电子科学与工程', 'code': '080704', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 16000, 'gender_ratio': '7:3'},
+    {'id': 24, 'name': '光电信息科学与工程', 'code': '080705', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '6:4'},
+    {'id': 25, 'name': '信息工程', 'code': '080706', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 26, 'name': '广播电视工程', 'code': '080707T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 27, 'name': '水声工程', 'code': '080708T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 28, 'name': '电子封装技术', 'code': '080709T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 29, 'name': '集成电路设计与集成系统', 'code': '080710T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 18000, 'gender_ratio': '7:3'},
+    {'id': 30, 'name': '医学信息工程', 'code': '080711T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    {'id': 31, 'name': '电磁场与无线技术', 'code': '080712T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 32, 'name': '电波传播与天线', 'code': '080713T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 33, 'name': '电子信息科学与技术', 'code': '080714T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 34, 'name': '电信工程及管理', 'code': '080715T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 35, 'name': '应用电子技术教育', 'code': '080716T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '5:5'},
+    {'id': 36, 'name': '人工智能', 'code': '080717T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 20000, 'gender_ratio': '7:3'},
+    {'id': 37, 'name': '海洋信息工程', 'code': '080718T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 38, 'name': '柔性电子学', 'code': '080719T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '6:4'},
+    {'id': 39, 'name': '智能测控工程', 'code': '080720T', 'category': '工学', 'sub_category': '电子信息类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '7:3'},
+    
+    # 工学 - 机械类
+    {'id': 50, 'name': '机械工程', 'code': '080201', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '8:2'},
+    {'id': 51, 'name': '机械设计制造及其自动化', 'code': '080202', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '8:2'},
+    {'id': 52, 'name': '材料成型及控制工程', 'code': '080203', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 53, 'name': '机械电子工程', 'code': '080204', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '8:2'},
+    {'id': 54, 'name': '工业设计', 'code': '080205', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 55, 'name': '过程装备与控制工程', 'code': '080206', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '7:3'},
+    {'id': 56, 'name': '车辆工程', 'code': '080207', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '8:2'},
+    {'id': 57, 'name': '汽车服务工程', 'code': '080208', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '8:2'},
+    {'id': 58, 'name': '机械工艺技术', 'code': '080209T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 59, 'name': '微机电系统工程', 'code': '080210T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 60, 'name': '机电技术教育', 'code': '080211T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '6:4'},
+    {'id': 61, 'name': '汽车维修工程教育', 'code': '080212T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '8:2'},
+    {'id': 62, 'name': '智能制造工程', 'code': '080213T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 13000, 'gender_ratio': '7:3'},
+    {'id': 63, 'name': '智能车辆工程', 'code': '080214T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 14000, 'gender_ratio': '8:2'},
+    {'id': 64, 'name': '仿生科学与工程', 'code': '080215T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 65, 'name': '新能源汽车工程', 'code': '080216T', 'category': '工学', 'sub_category': '机械类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 13000, 'gender_ratio': '8:2'},
+    
+    # 工学 - 自动化类
+    {'id': 70, 'name': '自动化', 'code': '080801', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '7:3'},
+    {'id': 71, 'name': '轨道交通信号与控制', 'code': '080802T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 72, 'name': '机器人工程', 'code': '080803T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 14000, 'gender_ratio': '7:3'},
+    {'id': 73, 'name': '邮政工程', 'code': '080804T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '6:4'},
+    {'id': 74, 'name': '核电技术与控制工程', 'code': '080805T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 75, 'name': '智能装备与系统', 'code': '080806T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 76, 'name': '工业智能', 'code': '080807T', 'category': '工学', 'sub_category': '自动化类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '7:3'},
+    
+    # 工学 - 土木类
+    {'id': 80, 'name': '土木工程', 'code': '081001', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '8:2'},
+    {'id': 81, 'name': '建筑环境与能源应用工程', 'code': '081002', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 82, 'name': '给排水科学与工程', 'code': '081003', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 83, 'name': '建筑电气与智能化', 'code': '081004', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '7:3'},
+    {'id': 84, 'name': '城市地下空间工程', 'code': '081005T', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '8:2'},
+    {'id': 85, 'name': '道路桥梁与渡河工程', 'code': '081006T', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '8:2'},
+    {'id': 86, 'name': '铁道工程', 'code': '081007T', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '8:2'},
+    {'id': 87, 'name': '智能建造', 'code': '081008T', 'category': '工学', 'sub_category': '土木类', 'degree_type': '工学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '7:3'},
+    
+    # 理学 - 数学类
+    {'id': 100, 'name': '数学与应用数学', 'code': '070101', 'category': '理学', 'sub_category': '数学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    {'id': 101, 'name': '信息与计算科学', 'code': '070102', 'category': '理学', 'sub_category': '数学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '6:4'},
+    {'id': 102, 'name': '数理基础科学', 'code': '070103T', 'category': '理学', 'sub_category': '数学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 103, 'name': '数据计算及应用', 'code': '070104T', 'category': '理学', 'sub_category': '数学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '6:4'},
+    
+    # 理学 - 物理学类
+    {'id': 110, 'name': '物理学', 'code': '070201', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '6:4'},
+    {'id': 111, 'name': '应用物理学', 'code': '070202', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '7:3'},
+    {'id': 112, 'name': '核物理', 'code': '070203', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '7:3'},
+    {'id': 113, 'name': '声学', 'code': '070204T', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '6:4'},
+    {'id': 114, 'name': '系统科学与工程', 'code': '070205T', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 115, 'name': '量子信息科学', 'code': '070206T', 'category': '理学', 'sub_category': '物理学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 15000, 'gender_ratio': '6:4'},
+    
+    # 理学 - 化学类
+    {'id': 120, 'name': '化学', 'code': '070301', 'category': '理学', 'sub_category': '化学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 121, 'name': '应用化学', 'code': '070302', 'category': '理学', 'sub_category': '化学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 122, 'name': '化学生物学', 'code': '070303T', 'category': '理学', 'sub_category': '化学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 123, 'name': '分子科学与工程', 'code': '070304T', 'category': '理学', 'sub_category': '化学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    
+    # 理学 - 生物科学类
+    {'id': 130, 'name': '生物科学', 'code': '071001', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 131, 'name': '生物技术', 'code': '071002', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 132, 'name': '生物信息学', 'code': '071003', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    {'id': 133, 'name': '生态学', 'code': '071004', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '4:6'},
+    {'id': 134, 'name': '整合科学', 'code': '071005T', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 135, 'name': '神经科学', 'code': '071006T', 'category': '理学', 'sub_category': '生物科学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    
+    # 医学 - 临床医学类
+    {'id': 150, 'name': '临床医学', 'code': '100201K', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 5, 'avg_salary': 15000, 'gender_ratio': '4:6'},
+    {'id': 151, 'name': '麻醉学', 'code': '100202TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '4:6'},
+    {'id': 152, 'name': '医学影像学', 'code': '100203TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '5:5'},
+    {'id': 153, 'name': '眼视光医学', 'code': '100204TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '4:6'},
+    {'id': 154, 'name': '精神医学', 'code': '100205TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '4:6'},
+    {'id': 155, 'name': '放射医学', 'code': '100206TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    {'id': 156, 'name': '儿科学', 'code': '100207TK', 'category': '医学', 'sub_category': '临床医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 5, 'avg_salary': 14000, 'gender_ratio': '3:7'},
+    
+    # 医学 - 口腔医学类
+    {'id': 160, 'name': '口腔医学', 'code': '100301K', 'category': '医学', 'sub_category': '口腔医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 5, 'avg_salary': 18000, 'gender_ratio': '4:6'},
+    
+    # 医学 - 公共卫生与预防医学类
+    {'id': 170, 'name': '预防医学', 'code': '100401K', 'category': '医学', 'sub_category': '公共卫生与预防医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 171, 'name': '食品卫生与营养学', 'code': '100402', 'category': '医学', 'sub_category': '公共卫生与预防医学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '3:7'},
+    {'id': 172, 'name': '妇幼保健医学', 'code': '100403TK', 'category': '医学', 'sub_category': '公共卫生与预防医学类', 'degree_type': '医学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '2:8'},
+    
+    # 医学 - 药学类
+    {'id': 180, 'name': '药学', 'code': '100701', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 181, 'name': '药物制剂', 'code': '100702', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 182, 'name': '临床药学', 'code': '100703TK', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 5, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '4:6'},
+    {'id': 183, 'name': '药事管理', 'code': '100704T', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 184, 'name': '药物分析', 'code': '100705T', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 185, 'name': '药物化学', 'code': '100706T', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    {'id': 186, 'name': '海洋药学', 'code': '100707T', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 187, 'name': '化妆品科学与技术', 'code': '100708TJ', 'category': '医学', 'sub_category': '药学类', 'degree_type': '理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '2:8'},
+    
+    # 经济学 - 经济学类
+    {'id': 200, 'name': '经济学', 'code': '020101', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 201, 'name': '经济统计学', 'code': '020102', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    {'id': 202, 'name': '国民经济管理', 'code': '020103T', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 203, 'name': '资源与环境经济学', 'code': '020104T', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '5:5'},
+    {'id': 204, 'name': '商务经济学', 'code': '020105T', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 205, 'name': '能源经济', 'code': '020106T', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '6:4'},
+    {'id': 206, 'name': '数字经济', 'code': '020109T', 'category': '经济学', 'sub_category': '经济学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    
+    # 经济学 - 金融学类
+    {'id': 210, 'name': '金融学', 'code': '020301K', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '4:6'},
+    {'id': 211, 'name': '金融工程', 'code': '020302', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 15000, 'gender_ratio': '5:5'},
+    {'id': 212, 'name': '保险学', 'code': '020303', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 213, 'name': '投资学', 'code': '020304', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '5:5'},
+    {'id': 214, 'name': '金融数学', 'code': '020305T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 16000, 'gender_ratio': '6:4'},
+    {'id': 215, 'name': '信用管理', 'code': '020306T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '5:5'},
+    {'id': 216, 'name': '经济与金融', 'code': '020307T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '4:6'},
+    {'id': 217, 'name': '精算学', 'code': '020308T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 18000, 'gender_ratio': '5:5'},
+    {'id': 218, 'name': '互联网金融', 'code': '020309T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 13000, 'gender_ratio': '5:5'},
+    {'id': 219, 'name': '金融科技', 'code': '020310T', 'category': '经济学', 'sub_category': '金融学类', 'degree_type': '经济学学士', 'duration': 4, 'employment_rating': 5, 'avg_salary': 16000, 'gender_ratio': '5:5'},
+    
+    # 管理学 - 工商管理类
+    {'id': 230, 'name': '工商管理', 'code': '120201K', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 231, 'name': '市场营销', 'code': '120202', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 232, 'name': '会计学', 'code': '120203K', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '3:7'},
+    {'id': 233, 'name': '财务管理', 'code': '120204', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '3:7'},
+    {'id': 234, 'name': '国际商务', 'code': '120205', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 235, 'name': '人力资源管理', 'code': '120206', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '3:7'},
+    {'id': 236, 'name': '审计学', 'code': '120207', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '3:7'},
+    {'id': 237, 'name': '资产评估', 'code': '120208', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 238, 'name': '物业管理', 'code': '120209', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '5:5'},
+    {'id': 239, 'name': '文化产业管理', 'code': '120210', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '4:6'},
+    {'id': 240, 'name': '劳动关系', 'code': '120211T', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 241, 'name': '体育经济与管理', 'code': '120212T', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '6:4'},
+    {'id': 242, 'name': '财务会计教育', 'code': '120213T', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '3:7'},
+    {'id': 243, 'name': '市场营销教育', 'code': '120214T', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '4:6'},
+    {'id': 244, 'name': '零售业管理', 'code': '120215T', 'category': '管理学', 'sub_category': '工商管理类', 'degree_type': '管理学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '4:6'},
+    
+    # 文学 - 中国语言文学类
+    {'id': 260, 'name': '汉语言文学', 'code': '050101', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 261, 'name': '汉语言', 'code': '050102', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 262, 'name': '汉语国际教育', 'code': '050103', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 263, 'name': '中国少数民族语言文学', 'code': '050104', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '4:6'},
+    {'id': 264, 'name': '古典文献学', 'code': '050105', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '4:6'},
+    {'id': 265, 'name': '应用语言学', 'code': '050106T', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 266, 'name': '秘书学', 'code': '050107T', 'category': '文学', 'sub_category': '中国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '2:8'},
+    
+    # 文学 - 外国语言文学类
+    {'id': 270, 'name': '英语', 'code': '050201', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '2:8'},
+    {'id': 271, 'name': '俄语', 'code': '050202', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '3:7'},
+    {'id': 272, 'name': '德语', 'code': '050203', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 273, 'name': '法语', 'code': '050204', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 274, 'name': '西班牙语', 'code': '050205', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 275, 'name': '阿拉伯语', 'code': '050206', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 276, 'name': '日语', 'code': '050207', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 277, 'name': '波斯语', 'code': '050208', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 278, 'name': '朝鲜语', 'code': '050209', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 279, 'name': '翻译', 'code': '050261', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '3:7'},
+    {'id': 280, 'name': '商务英语', 'code': '050262', 'category': '文学', 'sub_category': '外国语言文学类', 'degree_type': '文学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '2:8'},
+    
+    # 法学 - 法学类
+    {'id': 290, 'name': '法学', 'code': '030101K', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 291, 'name': '知识产权', 'code': '030102T', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '5:5'},
+    {'id': 292, 'name': '监狱学', 'code': '030103T', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 293, 'name': '信用风险管理与法律防控', 'code': '030104T', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '5:5'},
+    {'id': 294, 'name': '国际经贸规则', 'code': '030105T', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 295, 'name': '司法警察学', 'code': '030106TK', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '7:3'},
+    {'id': 296, 'name': '社区矫正', 'code': '030107TK', 'category': '法学', 'sub_category': '法学类', 'degree_type': '法学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '6:4'},
+    
+    # 教育学 - 教育学类
+    {'id': 300, 'name': '教育学', 'code': '040101', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 301, 'name': '科学教育', 'code': '040102', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '5:5'},
+    {'id': 302, 'name': '人文教育', 'code': '040103', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '3:7'},
+    {'id': 303, 'name': '教育技术学', 'code': '040104', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '5:5'},
+    {'id': 304, 'name': '艺术教育', 'code': '040105', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '3:7'},
+    {'id': 305, 'name': '学前教育', 'code': '040106', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 6000, 'gender_ratio': '1:9'},
+    {'id': 306, 'name': '小学教育', 'code': '040107', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '2:8'},
+    {'id': 307, 'name': '特殊教育', 'code': '040108', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 308, 'name': '华文教育', 'code': '040109T', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '3:7'},
+    {'id': 309, 'name': '教育康复学', 'code': '040110TK', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 310, 'name': '卫生教育', 'code': '040111T', 'category': '教育学', 'sub_category': '教育学类', 'degree_type': '教育学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    
+    # 艺术学 - 设计学类
+    {'id': 320, 'name': '艺术设计学', 'code': '130501', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '3:7'},
+    {'id': 321, 'name': '视觉传达设计', 'code': '130502', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '3:7'},
+    {'id': 322, 'name': '环境设计', 'code': '130503', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+    {'id': 323, 'name': '产品设计', 'code': '130504', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 9000, 'gender_ratio': '4:6'},
+    {'id': 324, 'name': '服装与服饰设计', 'code': '130505', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '2:8'},
+    {'id': 325, 'name': '公共艺术', 'code': '130506', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 326, 'name': '工艺美术', 'code': '130507', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 7000, 'gender_ratio': '3:7'},
+    {'id': 327, 'name': '数字媒体艺术', 'code': '130508', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 11000, 'gender_ratio': '4:6'},
+    {'id': 328, 'name': '艺术与科技', 'code': '130509T', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 12000, 'gender_ratio': '5:5'},
+    {'id': 329, 'name': '陶瓷艺术设计', 'code': '130510TK', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 2, 'avg_salary': 6000, 'gender_ratio': '4:6'},
+    {'id': 330, 'name': '新媒体艺术', 'code': '130511T', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 4, 'avg_salary': 10000, 'gender_ratio': '4:6'},
+    {'id': 331, 'name': '包装设计', 'code': '130512T', 'category': '艺术学', 'sub_category': '设计学类', 'degree_type': '艺术学学士', 'duration': 4, 'employment_rating': 3, 'avg_salary': 8000, 'gender_ratio': '4:6'},
+]
+
+def generate_major_data():
+    """生成专业数据"""
+    os.makedirs('data', exist_ok=True)
+    
+    # 保存数据
+    with open('./data/majors.json', 'w', encoding='utf-8') as f:
+        json.dump(MAJORS_DATA, f, ensure_ascii=False, indent=2)
+    
+    print(f"生成 {len(MAJORS_DATA)} 个专业")
+    print("专业数据已保存到 ./data/majors.json")
+    
+    # 统计
+    categories = {}
+    for major in MAJORS_DATA:
+        cat = major['category']
+        categories[cat] = categories.get(cat, 0) + 1
+    
+    print("\n按学科门类统计:")
+    for cat, count in sorted(categories.items()):
+        print(f"  {cat}: {count} 个")
+
+if __name__ == '__main__':
+    generate_major_data()

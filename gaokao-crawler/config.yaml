@@ -1,0 +1,105 @@
+# 高考数据爬取配置文件
+
+# 数据库配置
+database:
+  host: localhost
+  port: 3306
+  user: root
+  password: your_password  # 请修改为实际密码
+  database: gaokao
+  charset: utf8mb4
+
+# 爬虫配置
+crawler:
+  # 并发数
+  concurrency: 5
+  # 请求间隔（秒）
+  delay: 1.0
+  # 超时时间（秒）
+  timeout: 30
+  # 重试次数
+  retry: 3
+  # 是否使用代理
+  use_proxy: false
+  # 代理配置
+  proxy:
+    http: http://127.0.0.1:7890
+    https: http://127.0.0.1:7890
+
+# 数据源配置
+sources:
+  # 阳光高考平台（官方）
+  gaokao_cn:
+    enabled: true
+    base_url: https://gaokao.chsi.com.cn
+    # 院校列表接口
+    university_list: /zsgs/zhangcheng/listZszc--method-index.dhtml
+    # 分数线接口
+    score_query: /z/gk/fsx/queryFsx
+    # 院校详情接口
+    university_detail: /zsgs/zhangcheng/listZszc--schId-{schId},method-view.dhtml
+
+  # 掌上高考
+  gaokao_com:
+    enabled: true
+    base_url: https://api.eol.cn
+    # 院校列表接口
+    university_list: /gk/school/list
+    # 分数线接口
+    score_list: /gk/score/school
+    # 专业列表接口
+    major_list: /gk/major/list
+
+  # 省份考试院（部分省份）
+  provinces:
+    # 河南
+    henan:
+      enabled: true
+      base_url: https://www.heao.gov.cn
+      score_url: /zc/2024/20240624.shtml
+    # 山东
+    shandong:
+      enabled: true
+      base_url: https://www.sdzk.cn
+      score_url: /InfoList.aspx?CategoryID=78
+    # 广东
+    guangdong:
+      enabled: true
+      base_url: https://eea.gd.gov.cn
+      score_url: /tztg/content/post_4255155.html
+
+# 爬取范围
+scope:
+  # 年份范围
+  years: [2021, 2022, 2023, 2024]
+  # 省份列表（留空表示全部）
+  provinces: []
+  # 院校层次过滤
+  levels: [985, 211, 双一流, 普通]
+  # 科类
+  subject_types:
+    - 物理类
+    - 历史类
+    - 理科
+    - 文科
+    - 综合
+
+# 数据输出配置
+output:
+  # 是否保存原始数据
+  save_raw: true
+  # 原始数据目录
+  raw_dir: ./data/raw
+  # 处理后数据目录
+  processed_dir: ./data/processed
+  # 是否导出Excel
+  export_excel: true
+  # 是否直接入库
+  save_to_db: true
+
+# 日志配置
+logging:
+  level: INFO
+  file: ./logs/crawler.log
+  rotation: 10 MB
+  retention: 7 days
