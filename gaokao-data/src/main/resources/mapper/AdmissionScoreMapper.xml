@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gaokao.data.mapper.AdmissionScoreMapper">
+
+    <!-- 分数线 VO 结果映射 -->
+    <resultMap id="AdmissionScoreVOResultMap" type="com.gaokao.data.vo.AdmissionScoreVO">
+        <id column="id" property="id"/>
+        <result column="university_id" property="universityId"/>
+        <result column="university_name" property="universityName"/>
+        <result column="university_code" property="universityCode"/>
+        <result column="university_level" property="universityLevel"/>
+        <result column="university_type" property="universityType"/>
+        <result column="university_province" property="universityProvince"/>
+        <result column="university_city" property="universityCity"/>
+        <result column="major_id" property="majorId"/>
+        <result column="major_name" property="majorName"/>
+        <result column="province" property="province"/>
+        <result column="year" property="year"/>
+        <result column="batch" property="batch"/>
+        <result column="subject_type" property="subjectType"/>
+        <result column="min_score" property="minScore"/>
+        <result column="avg_score" property="avgScore"/>
+        <result column="max_score" property="maxScore"/>
+        <result column="min_rank" property="minRank"/>
+        <result column="max_rank" property="maxRank"/>
+        <result column="enrollment" property="enrollment"/>
+        <result column="admitted" property="admitted"/>
+    </resultMap>
+
+    <!-- 分页查询分数线（关联院校信息） -->
+    <select id="selectScorePage" resultMap="AdmissionScoreVOResultMap">
+        SELECT 
+            s.id,
+            s.university_id,
+            u.name AS university_name,
+            u.code AS university_code,
+            u.level AS university_level,
+            u.type AS university_type,
+            u.province AS university_province,
+            u.city AS university_city,
+            s.major_id,
+            NULL AS major_name,
+            s.province,
+            s.year,
+            s.batch,
+            s.subject_type,
+            s.min_score,
+            s.avg_score,
+            s.max_score,
+            s.min_rank,
+            s.max_rank,
+            s.enrollment,
+            s.admitted
+        FROM admission_score s
+        LEFT JOIN university u ON s.university_id = u.id
+        <where>
+            <if test="universityId != null">
+                AND s.university_id = #{universityId}
+            </if>
+            <if test="province != null and province != ''">
+                AND s.province = #{province}
+            </if>
+            <if test="subjectType != null and subjectType != ''">
+                AND s.subject_type = #{subjectType}
+            </if>
+            <if test="year != null">
+                AND s.year = #{year}
+            </if>
+            <if test="minScoreFrom != null">
+                AND s.min_score &gt;= #{minScoreFrom}
+            </if>
+            <if test="minScoreTo != null">
+                AND s.min_score &lt;= #{minScoreTo}
+            </if>
+        </where>
+        ORDER BY s.year DESC, s.min_score DESC
+    </select>
+
+    <!-- 根据分数范围查询可报考院校 -->
+    <select id="selectByScoreRange" resultMap="AdmissionScoreVOResultMap">
+        SELECT 
+            s.id,
+            s.university_id,
+            u.name AS university_name,
+            u.code AS university_code,
+            u.level AS university_level,
+            u.type AS university_type,
+            u.province AS university_province,
+            u.city AS university_city,
+            s.major_id,
+            NULL AS major_name,
+            s.province,
+            s.year,
+            s.batch,
+            s.subject_type,
+            s.min_score,
+            s.avg_score,
+            s.max_score,
+            s.min_rank,
+            s.max_rank,
+            s.enrollment,
+            s.admitted
+        FROM admission_score s
+        LEFT JOIN university u ON s.university_id = u.id
+        <where>
+            <if test="province != null and province != ''">
+                AND s.province = #{province}
+            </if>
+            <if test="subjectType != null and subjectType != ''">
+                AND s.subject_type = #{subjectType}
+            </if>
+            <if test="year != null">
+                AND s.year = #{year}
+            </if>
+            <if test="minScore != null">
+                AND s.min_score &gt;= #{minScore}
+            </if>
+            <if test="maxScore != null">
+                AND s.min_score &lt;= #{maxScore}
+            </if>
+        </where>
+        ORDER BY s.min_score DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 查询院校历年分数线趋势 -->
+    <select id="selectScoreTrend" resultMap="AdmissionScoreVOResultMap">
+        SELECT 
+            s.id,
+            s.university_id,
+            u.name AS university_name,
+            u.code AS university_code,
+            u.level AS university_level,
+            u.type AS university_type,
+            u.province AS university_province,
+            u.city AS university_city,
+            s.major_id,
+            NULL AS major_name,
+            s.province,
+            s.year,
+            s.batch,
+            s.subject_type,
+            s.min_score,
+            s.avg_score,
+            s.max_score,
+            s.min_rank,
+            s.max_rank,
+            s.enrollment,
+            s.admitted
+        FROM admission_score s
+        LEFT JOIN university u ON s.university_id = u.id
+        <where>
+            <if test="universityId != null">
+                AND s.university_id = #{universityId}
+            </if>
+            <if test="province != null and province != ''">
+                AND s.province = #{province}
+            </if>
+            <if test="subjectType != null and subjectType != ''">
+                AND s.subject_type = #{subjectType}
+            </if>
+            <if test="years != null and years.size() > 0">
+                AND s.year IN
+                <foreach collection="years" item="year" open="(" separator="," close=")">
+                    #{year}
+                </foreach>
+            </if>
+        </where>
+        ORDER BY s.year DESC
+    </select>
+
+    <!-- 统计院校分数线信息 -->
+    <select id="selectScoreStatistics" resultType="java.util.Map">
+        SELECT 
+            COUNT(*) AS total_count,
+            MIN(min_score) AS min_score_min,
+            MAX(min_score) AS min_score_max,
+            AVG(min_score) AS min_score_avg,
+            MIN(min_rank) AS min_rank_min,
+            MAX(min_rank) AS min_rank_max,
+            AVG(min_rank) AS min_rank_avg,
+            SUM(enrollment) AS total_enrollment
+        FROM admission_score
+        <where>
+            <if test="universityId != null">
+                AND university_id = #{universityId}
+            </if>
+            <if test="province != null and province != ''">
+                AND province = #{province}
+            </if>
+            <if test="subjectType != null and subjectType != ''">
+                AND subject_type = #{subjectType}
+            </if>
+        </where>
+    </select>
+
+    <!-- 查询同分段可报考院校 -->
+    <select id="selectSameScoreUniversities" resultMap="AdmissionScoreVOResultMap">
+        SELECT 
+            s.id,
+            s.university_id,
+            u.name AS university_name,
+            u.code AS university_code,
+            u.level AS university_level,
+            u.type AS university_type,
+            u.province AS university_province,
+            u.city AS university_city,
+            s.major_id,
+            NULL AS major_name,
+            s.province,
+            s.year,
+            s.batch,
+            s.subject_type,
+            s.min_score,
+            s.avg_score,
+            s.max_score,
+            s.min_rank,
+            s.max_rank,
+            s.enrollment,
+            s.admitted
+        FROM admission_score s
+        LEFT JOIN university u ON s.university_id = u.id
+        <where>
+            <if test="province != null and province != ''">
+                AND s.province = #{province}
+            </if>
+            <if test="subjectType != null and subjectType != ''">
+                AND s.subject_type = #{subjectType}
+            </if>
+            <if test="year != null">
+                AND s.year = #{year}
+            </if>
+            <if test="score != null and range != null">
+                AND s.min_score BETWEEN #{score} - #{range} AND #{score} + #{range}
+            </if>
+            <if test="level != null and level != ''">
+                AND u.level = #{level}
+            </if>
+        </where>
+        ORDER BY ABS(s.min_score - #{score}) ASC, u.ranking ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 查询省份分数线分布 -->
+    <select id="selectProvinceScoreDistribution" resultType="java.util.Map">
+        SELECT 
+            u.level,
+            COUNT(*) AS university_count,
+            MIN(s.min_score) AS min_score_min,
+            MAX(s.min_score) AS min_score_max,
+            AVG(s.min_score) AS min_score_avg,
+            SUM(s.enrollment) AS total_enrollment
+        FROM admission_score s
+        LEFT JOIN university u ON s.university_id = u.id
+        <where>
+            <if test="province != null and province != ''">
+                AND s.province = #{province}
+            </if>
+            <if test="year != null">
+                AND s.year = #{year}
+            </if>
+        </where>
+        GROUP BY u.level
+        ORDER BY min_score_avg DESC
+    </select>
+
+</mapper>
