@@ -9,6 +9,7 @@ import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
 import dev.langchain4j.store.embedding.elasticsearch.ElasticsearchEmbeddingStore;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -40,6 +41,18 @@ public class VectorStoreConfig {
     @Value("${langchain4j.vectorstore.elasticsearch.index:gaokao_embeddings}")
     private String esIndex;
 
+    @Value("${elasticsearch.host:localhost}")
+    private String esHost;
+
+    @Value("${elasticsearch.port:9200}")
+    private int esPort;
+
+    @Value("${elasticsearch.username:}")
+    private String esUsername;
+
+    @Value("${elasticsearch.password:}")
+    private String esPassword;
+
     /**
      * 内存向量存储（默认）
      * 适用于开发测试环境
@@ -52,6 +65,7 @@ public class VectorStoreConfig {
     }
 
     /**
+     * 已弃用
      * PGVector向量存储
      * 适用于生产环境
      * 需要配置 spring.pgvector.datasource.* 和 langchain4j.vectorstore.type=pgvector
@@ -80,14 +94,18 @@ public class VectorStoreConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "langchain4j.vectorstore.type", havingValue = "elasticsearch")
-    public EmbeddingStore<TextSegment> elasticsearchEmbeddingStore(ElasticsearchClient elasticsearchClient) {
+    public EmbeddingStore<TextSegment> elasticsearchEmbeddingStore(RestClient restClient) {
         log.info("使用Elasticsearch向量存储, index={}", esIndex);
 
         try {
-            // LangChain4j 1.0.0-beta2 API: 使用 InputStream 或配置方式
-            // 暂时降级使用内存存储，后续可升级API
-            log.warn("当前LangChain4j版本Elasticsearch API需要额外配置，暂时使用内存存储");
-            return new InMemoryEmbeddingStore<>();
+            // LangChain4j 1.0.0-beta2 API: 使用 RestClient
+            ElasticsearchEmbeddingStore store = ElasticsearchEmbeddingStore.builder()
+                    .restClient(restClient)
+                    .indexName(esIndex)
+                    .build();
+
+            log.info("Elasticsearch向量存储初始化成功, index={}", esIndex);
+            return store;
         } catch (Exception e) {
             log.error("初始化Elasticsearch向量存储失败，降级使用内存存储: {}", e.getMessage());
             return new InMemoryEmbeddingStore<>();

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +14,7 @@ import java.util.function.Supplier;
 
 /**
  * 缓存服务实现类
- * 
+ *
  * 使用 Redisson 分布式锁解决以下问题：
  * 1. 缓存击穿：热点 key 过期瞬间大量请求穿透到数据库
  * 2. 缓存雪崩：大量 key 同时过期
@@ -21,6 +22,7 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class CacheServiceImpl implements CacheService {
 

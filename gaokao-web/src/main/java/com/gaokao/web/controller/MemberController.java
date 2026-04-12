@@ -134,6 +134,49 @@ public class MemberController {
         return Result.success(voList);
     }
 
+    @Operation(summary = "获取AI对话使用次数", description = "返回今日AI对话已用次数和总限制")
+    @GetMapping("/ai-usage")
+    public Result<AiUsageVO> getAiUsage(@RequestAttribute("userId") Long userId) {
+        Member member = memberService.getMemberByUserId(userId);
+        if (member == null) {
+            member = memberService.createFreeMember(userId);
+        }
+
+        String level = member.getLevel();
+        MemberPrivilege privilege = memberPrivilegeService.getPrivilege(level, "AI_CHAT");
+
+        if (privilege == null) {
+            // 默认配置
+            return Result.success(new AiUsageVO(0, 10, 10 - 0, false));
+        }
+
+        String today = LocalDate.now().toString();
+        String usageKey = USAGE_KEY_PREFIX + userId + ":AI_CHAT:" + today;
+        int usedCount = memberService.getUsageCount(usageKey);
+        int limitCount = privilege.getLimitCount();
+        int remainingCount = limitCount == -1 ? Integer.MAX_VALUE : limitCount - usedCount;
+        boolean unlimited = limitCount == -1;
+
+        return Result.success(new AiUsageVO(usedCount, limitCount, remainingCount, unlimited));
+    }
+
+    /**
+     * AI使用情况VO
+     */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    @lombok.NoArgsConstructor
+    public static class AiUsageVO {
+        /** 今日已使用次数 */
+        private int usedCount;
+        /** 每日限制次数，-1表示无限 */
+        private int limitCount;
+        /** 剩余次数 */
+        private int remainingCount;
+        /** 是否无限 */
+        private boolean unlimited;
+    }
+
     /**
      * 转换为VO
      */

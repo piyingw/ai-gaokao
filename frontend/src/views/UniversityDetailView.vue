@@ -6,14 +6,42 @@ import { universityApi } from '@/services/api'
 const route = useRoute()
 const router = useRouter()
 const university = ref(null)
+const scores = ref([])
+const majors = ref([])
 const loading = ref(true)
+const scoresLoading = ref(false)
+const majorsLoading = ref(false)
 const activeTab = ref('overview')
 
 const loadUniversityDetails = async () => {
   try {
+    loading.value = true
     const id = route.params.id
     const response = await universityApi.getUniversityDetail(id)
     university.value = response.data
+
+    // 加载分数线数据
+    scoresLoading.value = true
+    try {
+      const scoresRes = await universityApi.getUniversityScores(id)
+      scores.value = scoresRes.data || []
+    } catch (e) {
+      console.error('获取分数线失败:', e)
+    } finally {
+      scoresLoading.value = false
+    }
+
+    // 加载专业数据
+    majorsLoading.value = true
+    try {
+      const majorsRes = await universityApi.getUniversityMajors(id)
+      majors.value = majorsRes.data || []
+    } catch (e) {
+      console.error('获取专业失败:', e)
+    } finally {
+      majorsLoading.value = false
+    }
+
   } catch (error) {
     console.error('获取院校详情失败:', error)
     // 设置默认数据
@@ -24,27 +52,17 @@ const loadUniversityDetails = async () => {
       level: '985工程,双一流',
       type: '综合类',
       foundingYear: 1898,
-      description: '这是一所综合性研究型大学，拥有悠久的历史和优良的传统。学校以严谨的学风和卓越的教学质量著称，培养了大批杰出人才。',
+      description: '这是一所综合性研究型大学，拥有悠久的历史和优良的传统。',
       campusArea: '455公顷',
       studentCount: '50000人',
-      facultyCount: '3000人',
       contact: {
         address: '北京市海淀区颐和园路5号',
         phone: '010-12345678',
         website: 'https://www.example.edu.cn'
-      },
-      scores: [
-        { year: 2023, scienceAvg: 650, artsAvg: 620 },
-        { year: 2022, scienceAvg: 648, artsAvg: 618 },
-        { year: 2021, scienceAvg: 645, artsAvg: 615 }
-      ],
-      majors: [
-        { id: 1, name: '计算机科学与技术', category: '工学', degree: '本科' },
-        { id: 2, name: '临床医学', category: '医学', degree: '本科' },
-        { id: 3, name: '金融学', category: '经济学', degree: '本科' },
-        { id: 4, name: '法学', category: '法学', degree: '本科' }
-      ]
+      }
     }
+    scores.value = []
+    majors.value = []
   } finally {
     loading.value = false
   }
@@ -147,17 +165,26 @@ onMounted(() => {
                   <span>历年录取分数线</span>
                 </div>
               </template>
-              
-              <el-table :data="university.scores" style="width: 100%">
-                <el-table-column prop="year" label="年份" width="100" />
-                <el-table-column prop="scienceAvg" label="理科平均分" width="150" />
-                <el-table-column prop="artsAvg" label="文科平均分" width="150" />
-                <el-table-column label="操作">
-                  <template #default>
-                    <el-button size="small" @click="$router.push('/ai-assistant')">咨询报考建议</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
+
+              <el-skeleton :loading="scoresLoading" animated>
+                <template #default>
+                  <el-empty v-if="scores.length === 0" description="暂无分数线数据" />
+
+                  <el-table v-else :data="scores" style="width: 100%">
+                    <el-table-column prop="year" label="年份" width="100" />
+                    <el-table-column prop="province" label="省份" width="120" />
+                    <el-table-column prop="subjectType" label="科类" width="100" />
+                    <el-table-column prop="minScore" label="最低分" width="120" />
+                    <el-table-column prop="avgScore" label="平均分" width="120" />
+                    <el-table-column prop="maxScore" label="最高分" width="120" />
+                    <el-table-column label="操作">
+                      <template #default>
+                        <el-button size="small" @click="$router.push('/ai-assistant')">咨询报考建议</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </template>
+              </el-skeleton>
             </el-card>
           </el-tab-pane>
 
@@ -170,17 +197,24 @@ onMounted(() => {
                   <span>开设专业</span>
                 </div>
               </template>
-              
-              <el-table :data="university.majors" style="width: 100%">
-                <el-table-column prop="name" label="专业名称" />
-                <el-table-column prop="category" label="学科门类" width="120" />
-                <el-table-column prop="degree" label="学位" width="100" />
-                <el-table-column label="操作" width="150">
-                  <template #default>
-                    <el-button size="small">查看详情</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
+
+              <el-skeleton :loading="majorsLoading" animated>
+                <template #default>
+                  <el-empty v-if="majors.length === 0" description="暂无专业数据" />
+
+                  <el-table v-else :data="majors" style="width: 100%">
+                    <el-table-column prop="majorName" label="专业名称" />
+                    <el-table-column prop="category" label="学科门类" width="120" />
+                    <el-table-column prop="degree" label="学位" width="100" />
+                    <el-table-column prop="duration" label="学制" width="80" />
+                    <el-table-column label="操作" width="150">
+                      <template #default="row">
+                        <el-button size="small" @click="$router.push(`/major/${row.majorId || row.id}`)">查看详情</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </template>
+              </el-skeleton>
             </el-card>
           </el-tab-pane>
 

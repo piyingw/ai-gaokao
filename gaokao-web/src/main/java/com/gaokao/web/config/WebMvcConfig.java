@@ -26,6 +26,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/university/list",
                         "/api/university/*/scores",
                         "/api/university/*/majors",
+                        "/api/university/*",
+                        "/api/major/list",
+                        "/api/major/*",
+                        "/api/member/products",       // 会员商品列表（公开）
+                        "/api/policy/list",
+                        "/api/policy/*",
                         "/api/ai/qa",
                         "/api/ai/policy/list",
                         "/api/ai/policy/*",

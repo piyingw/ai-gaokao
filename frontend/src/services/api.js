@@ -212,3 +212,203 @@ export const aiApi = {
     })
   }
 }
+
+// 会员相关API
+export const memberApi = {
+  // 获取会员信息
+  getMemberInfo() {
+    return request('/member/info')
+  },
+
+  // 获取会员权益列表
+  getMemberPrivileges() {
+    return request('/member/privileges')
+  },
+
+  // 获取会员商品列表
+  getMemberProducts() {
+    return request('/member/products')
+  },
+
+  // 获取今日权益使用情况
+  getTodayUsage() {
+    return request('/member/usage')
+  },
+
+  // 获取AI对话使用次数
+  getAiUsage() {
+    return request('/member/ai-usage')
+  }
+}
+
+// 订单相关API (Mock支付)
+export const orderApi = {
+  // 创建会员订单
+  createOrder(productId) {
+    return request('/order/create', {
+      method: 'POST',
+      body: JSON.stringify({ productId })
+    })
+  },
+
+  // 发起支付 (Mock: 直接成功)
+  payOrder(orderId, paymentMethod = 'MOCK') {
+    return request('/order/pay', {
+      method: 'POST',
+      body: JSON.stringify({ orderId, paymentMethod })
+    })
+  },
+
+  // 取消订单
+  cancelOrder(orderId, reason = '') {
+    return request(`/order/cancel/${orderId}?reason=${encodeURIComponent(reason)}`, {
+      method: 'POST'
+    })
+  },
+
+  // 获取订单列表
+  getOrderList(status = '') {
+    return request(`/order/list?status=${status}`)
+  },
+
+  // 获取订单详情
+  getOrderDetail(orderId) {
+    return request(`/order/detail/${orderId}`)
+  },
+
+  // 查询订单支付状态
+  queryOrderStatus(orderNo) {
+    return request(`/order/status/${orderNo}`)
+  }
+}
+
+// 优惠券相关API
+export const couponApi = {
+  // 获取可领取的优惠券列表
+  getTemplates() {
+    return request('/coupon/templates')
+  },
+
+  // 领取优惠券
+  claimCoupon(templateId) {
+    return request(`/coupon/claim/${templateId}`, {
+      method: 'POST'
+    })
+  },
+
+  // 获取我的优惠券列表
+  getMyCoupons() {
+    return request('/coupon/list')
+  },
+
+  // 获取可用优惠券
+  getAvailableCoupons(orderAmount) {
+    return request(`/coupon/available?orderAmount=${orderAmount || ''}`)
+  },
+
+  // 计算优惠金额
+  calculateDiscount(couponCode, orderAmount) {
+    return request(`/coupon/calculate?couponCode=${couponCode}&orderAmount=${orderAmount}`, {
+      method: 'POST'
+    })
+  }
+}
+
+// 志愿管理API
+export const applicationApi = {
+  // 分页查询志愿列表
+  getApplicationList(pageNum = 1, pageSize = 10) {
+    return request(`/application/list?pageNum=${pageNum}&pageSize=${pageSize}`)
+  },
+
+  // 获取志愿详情
+  getApplicationDetail(id) {
+    return request(`/application/${id}`)
+  },
+
+  // 创建志愿
+  createApplication(data) {
+    return request('/application', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
+
+  // 更新志愿
+  updateApplication(data) {
+    return request('/application', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  },
+
+  // 删除志愿
+  deleteApplication(id) {
+    return request(`/application/${id}`, {
+      method: 'DELETE'
+    })
+  },
+
+  // 提交志愿
+  submitApplication(id) {
+    return request(`/application/${id}/submit`, {
+      method: 'POST'
+    })
+  },
+
+  // 复制志愿
+  copyApplication(id) {
+    return request(`/application/${id}/copy`, {
+      method: 'POST'
+    })
+  },
+
+  // 获取最新志愿
+  getLatestApplication() {
+    return request('/application/latest')
+  },
+
+  // 分析志愿方案
+  analyzeApplication(id) {
+    return request(`/application/${id}/analyze`)
+  }
+}
+
+// 政策文档API
+export const policyApi = {
+  // 分页查询政策文档
+  getPolicyList(params = {}) {
+    const queryParams = new URLSearchParams(params).toString()
+    return request(`/policy/list?${queryParams}`)
+  },
+
+  // 获取政策文档详情
+  getPolicyDetail(id) {
+    return request(`/policy/${id}`)
+  },
+
+  // 搜索政策文档
+  searchPolicies(keyword, limit = 10) {
+    return request(`/policy/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`)
+  },
+
+  // 按类型获取政策文档
+  getPoliciesByType(type) {
+    return request(`/policy/type/${type}`)
+  },
+
+  // 按省份获取政策文档
+  getPoliciesByProvince(province) {
+    return request(`/policy/province/${province}`)
+  },
+
+  // 获取热门政策
+  getHotPolicies(limit = 10) {
+    return request(`/policy/hot?limit=${limit}`)
+  },
+
+  // 获取政策文档类型列表
+  getPolicyTypes() {
+    return request('/policy/types')
+  }
+}

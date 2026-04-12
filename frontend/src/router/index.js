@@ -40,6 +40,31 @@ const router = createRouter({
       path: '/user',
       name: 'user',
       component: () => import('@/views/UserView.vue')
+    },
+    {
+      path: '/member',
+      name: 'member',
+      component: () => import('@/views/MemberView.vue')
+    },
+    {
+      path: '/my-orders',
+      name: 'my-orders',
+      component: () => import('@/views/MyOrdersView.vue')
+    },
+    {
+      path: '/coupons',
+      name: 'coupons',
+      component: () => import('@/views/CouponView.vue')
+    },
+    {
+      path: '/my-applications',
+      name: 'my-applications',
+      component: () => import('@/views/MyApplicationsView.vue')
+    },
+    {
+      path: '/policy',
+      name: 'policy',
+      component: () => import('@/views/PolicyView.vue')
     }
   ]
 })

@@ -38,7 +38,7 @@ public class ElasticsearchConfig {
     private boolean useSsl;
 
     @Bean
-    public ElasticsearchClient elasticsearchClient() {
+    public RestClient restClient() {
         // 创建 HTTP 客户端
         RestClientBuilder builder = RestClient.builder(new HttpHost(host, port, useSsl ? "https" : "http"));
 
@@ -51,9 +51,14 @@ public class ElasticsearchConfig {
                     httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
         }
 
+        return builder.build();
+    }
+
+    @Bean
+    public ElasticsearchClient elasticsearchClient(RestClient restClient) {
         // 创建传输层
         ElasticsearchTransport transport = new RestClientTransport(
-                builder.build(), new JacksonJsonpMapper());
+                restClient, new JacksonJsonpMapper());
 
         // 创建客户端
         return new ElasticsearchClient(transport);

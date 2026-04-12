@@ -1,7 +1,8 @@
 <script setup>
-import { ref, nextTick, computed } from 'vue'
-import { aiApi } from '@/services/api'
+import { ref, nextTick, computed, onMounted, watch } from 'vue'
+import { aiApi, memberApi } from '@/services/api'
 import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 const messages = ref([
@@ -16,6 +17,52 @@ const inputMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref(null)
 
+// AI使用次数相关
+const aiUsage = ref({
+  usedCount: 0,
+  limitCount: 10,
+  remainingCount: 10,
+  unlimited: false
+})
+const usageLoading = ref(false)
+
+// 获取AI使用次数
+const fetchAiUsage = async () => {
+  if (!userStore.isLoggedIn) return
+
+  try {
+    usageLoading.value = true
+    const res = await memberApi.getAiUsage()
+    aiUsage.value = res.data
+  } catch (error) {
+    console.error('获取AI使用次数失败:', error)
+  } finally {
+    usageLoading.value = false
+  }
+}
+
+// 监听登录状态变化
+watch(() => userStore.isLoggedIn, (isLoggedIn) => {
+  if (isLoggedIn) {
+    fetchAiUsage()
+  } else {
+    // 未登录时重置为默认值
+    aiUsage.value = {
+      usedCount: 0,
+      limitCount: 10,
+      remainingCount: 10,
+      unlimited: false
+    }
+  }
+})
+
+// 初始化时获取使用次数
+onMounted(() => {
+  if (userStore.isLoggedIn) {
+    fetchAiUsage()
+  }
+})
+
 const quickQuestions = [
   { text: '我的分数能上什么大学？', icon: 'School' },
   { text: '如何选择适合的专业？', icon: 'Reading' },
@@ -25,8 +72,33 @@ const quickQuestions = [
   { text: '如何平衡学校和专业？', icon: 'ScaleToOriginal' }
 ]
 
+// 检查是否可以发送消息
+const canSendMessage = computed(() => {
+  if (!userStore.isLoggedIn) return true // 未登录用户暂时允许（实际会被拦截）
+  if (aiUsage.value.unlimited) return true
+  return aiUsage.value.remainingCount > 0
+})
+
+// 使用次数警告
+const showUsageWarning = computed(() => {
+  if (aiUsage.value.unlimited) return false
+  return aiUsage.value.remainingCount <= 3 && aiUsage.value.remainingCount > 0
+})
+
+// 使用次数耗尽
+const usageExhausted = computed(() => {
+  if (aiUsage.value.unlimited) return false
+  return aiUsage.value.remainingCount <= 0
+})
+
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || loading.value) return
+
+  // 检查使用次数
+  if (!canSendMessage.value) {
+    ElMessage.warning('今日AI对话次数已用完，请升级会员或明日再试')
+    return
+  }
 
   const userMessage = {
     id: messages.value.length + 1,
@@ -54,15 +126,37 @@ const sendMessage = async () => {
       timestamp: new Date()
     }
     messages.value.push(aiResponse)
+
+    // 更新使用次数（成功发送后）
+    if (userStore.isLoggedIn) {
+      aiUsage.value.usedCount++
+      if (!aiUsage.value.unlimited) {
+        aiUsage.value.remainingCount--
+      }
+    }
   } catch (error) {
     console.error('AI聊天出错:', error)
-    const aiResponse = {
-      id: messages.value.length + 1,
-      text: '抱歉，AI服务暂时不可用，请稍后再试。您可以尝试刷新页面或联系技术支持。',
-      sender: 'ai',
-      timestamp: new Date()
+
+    // 处理权益超限错误
+    if (error.message && error.message.includes('次数已达上限')) {
+      const aiResponse = {
+        id: messages.value.length + 1,
+        text: '⚠️ 今日AI对话次数已用完！\n\n您可以：\n• 升级会员获得更多对话次数\n• 明日再继续对话\n• 前往会员中心查看详情',
+        sender: 'ai',
+        timestamp: new Date()
+      }
+      messages.value.push(aiResponse)
+      // 更新状态
+      aiUsage.value.remainingCount = 0
+    } else {
+      const aiResponse = {
+        id: messages.value.length + 1,
+        text: '抱歉，AI服务暂时不可用，请稍后再试。您可以尝试刷新页面或联系技术支持。',
+        sender: 'ai',
+        timestamp: new Date()
+      }
+      messages.value.push(aiResponse)
     }
-    messages.value.push(aiResponse)
   } finally {
     loading.value = false
     scrollToBottom()
@@ -88,6 +182,14 @@ const handleQuickQuestion = (question) => {
 
 // 根据登录状态显示不同的功能
 const showPersonalizedFeatures = computed(() => userStore.isLoggedIn)
+
+// 格式化使用次数显示
+const usageDisplay = computed(() => {
+  if (aiUsage.value.unlimited) {
+    return '无限'
+  }
+  return `${aiUsage.value.usedCount}/${aiUsage.value.limitCount}`
+})
 </script>
 
 <template>
@@ -182,11 +284,54 @@ const showPersonalizedFeatures = computed(() => userStore.isLoggedIn)
                     </div>
                   </div>
                 </div>
-                <el-tag type="success" effect="light">
-                  <el-icon><Cpu /></el-icon>
-                  通义千问驱动
-                </el-tag>
+                <div class="header-right">
+                  <!-- 使用次数显示 -->
+                  <div v-if="userStore.isLoggedIn" class="usage-indicator" :class="{ warning: showUsageWarning, exhausted: usageExhausted }">
+                    <el-icon><ChatLineRound /></el-icon>
+                    <span v-if="aiUsage.unlimited">无限对话</span>
+                    <span v-else>今日已用 {{ usageDisplay }}</span>
+                    <el-progress
+                      v-if="!aiUsage.unlimited"
+                      :percentage="(aiUsage.remainingCount / aiUsage.limitCount) * 100"
+                      :stroke-width="4"
+                      :show-text="false"
+                      :color="usageExhausted ? '#ef4444' : showUsageWarning ? '#f59e0b' : '#22c55e'"
+                    />
+                  </div>
+                  <el-tag type="success" effect="light">
+                    <el-icon><Cpu /></el-icon>
+                    通义千问驱动
+                  </el-tag>
+                </div>
               </div>
+
+              <!-- 使用次数警告提示 -->
+              <el-alert
+                v-if="showUsageWarning"
+                type="warning"
+                :closable="false"
+                show-icon
+                class="usage-alert"
+              >
+                <template #title>
+                  今日AI对话剩余 {{ aiUsage.remainingCount }} 次，建议升级会员获得更多次数
+                </template>
+              </el-alert>
+
+              <!-- 使用次数耗尽提示 -->
+              <el-alert
+                v-if="usageExhausted"
+                type="error"
+                :closable="false"
+                show-icon
+                class="usage-alert"
+              >
+                <template #title>
+                  今日AI对话次数已用完！请
+                  <el-link type="primary" @click="$router.push('/member')">升级会员</el-link>
+                  或明日再试
+                </template>
+              </el-alert>
             </template>
 
             <!-- 消息列表 -->
@@ -222,19 +367,20 @@ const showPersonalizedFeatures = computed(() => userStore.isLoggedIn)
             </div>
 
             <!-- 输入区域 -->
-            <div class="input-area">
+            <div class="input-area" :class="{ disabled: usageExhausted }">
               <el-input
                 v-model="inputMessage"
                 type="textarea"
                 :rows="2"
-                placeholder="请输入您想咨询的问题，例如：我的分数能上什么大学？"
+                :placeholder="usageExhausted ? '今日对话次数已用完，请升级会员或明日再试' : '请输入您想咨询的问题，例如：我的分数能上什么大学？'"
+                :disabled="usageExhausted"
                 resize="none"
                 @keydown.enter.exact.prevent="sendMessage"
               />
               <el-button
                 type="primary"
                 :loading="loading"
-                :disabled="!inputMessage.trim()"
+                :disabled="!inputMessage.trim() || usageExhausted"
                 @click="sendMessage"
               >
                 <el-icon v-if="!loading"><Promotion /></el-icon>
@@ -379,6 +525,64 @@ const showPersonalizedFeatures = computed(() => userStore.isLoggedIn)
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* 使用次数指示器 */
+.usage-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.usage-indicator .el-icon {
+  color: #667eea;
+}
+
+.usage-indicator.warning {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.usage-indicator.warning .el-icon {
+  color: #f59e0b;
+}
+
+.usage-indicator.exhausted {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.usage-indicator.exhausted .el-icon {
+  color: #ef4444;
+}
+
+.usage-indicator .el-progress {
+  width: 60px;
+  margin-left: 0.5rem;
+}
+
+/* 使用次数警告 */
+.usage-alert {
+  margin-top: 1rem;
+  border-radius: 12px;
+}
+
+.usage-alert :deep(.el-alert__title) {
+  font-size: 0.9rem;
 }
 
 .assistant-info {
@@ -528,6 +732,11 @@ const showPersonalizedFeatures = computed(() => userStore.isLoggedIn)
   padding: 1rem 1.5rem;
   background: #fff;
   border-top: 1px solid #e2e8f0;
+}
+
+.input-area.disabled {
+  opacity: 0.6;
+  background: #f8fafc;
 }
 
 .input-area .el-textarea {

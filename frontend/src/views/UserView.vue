@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { memberApi, applicationApi } from '@/services/api'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -10,26 +11,44 @@ const loading = ref(false)
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const userInfo = computed(() => userStore.userInfo)
 
+// 会员信息
+const memberInfo = ref(null)
+const applicationCount = ref(0)
+
 onMounted(async () => {
   if (userStore.token && !userStore.userInfo) {
     loading.value = true
     await userStore.fetchUserInfo()
     loading.value = false
   }
+
+  // 获取会员信息和志愿数量
+  if (userStore.isLoggedIn) {
+    try {
+      const memberRes = await memberApi.getMemberInfo()
+      memberInfo.value = memberRes.data
+
+      const appRes = await applicationApi.getApplicationList(1, 100)
+      applicationCount.value = appRes.data?.total || 0
+    } catch (e) {
+      console.error('获取用户数据失败:', e)
+    }
+  }
 })
 
 const menuItems = [
-  { icon: 'User', title: '基本信息', desc: '查看和修改个人资料' },
-  { icon: 'Document', title: '我的志愿', desc: '管理志愿填报方案' },
-  { icon: 'Star', title: '我的收藏', desc: '收藏的院校和专业' },
-  { icon: 'Setting', title: '账号设置', desc: '密码和安全设置' }
+  { icon: 'User', title: '基本信息', desc: '查看和修改个人资料', path: '/user' },
+  { icon: 'Document', title: '我的志愿', desc: '管理志愿填报方案', path: '/my-applications' },
+  { icon: 'Medal', title: '会员中心', desc: '查看会员等级和权益', path: '/member' },
+  { icon: 'ShoppingCart', title: '我的订单', desc: '查看购买订单', path: '/my-orders' },
+  { icon: 'Ticket', title: '优惠券', desc: '领取和管理优惠券', path: '/coupons' }
 ]
 
-const stats = [
-  { label: '收藏院校', value: 12, icon: 'School', color: '#409eff' },
-  { label: '收藏专业', value: 8, icon: 'Reading', color: '#67c23a' },
-  { label: '生成方案', value: 3, icon: 'Document', color: '#e6a23c' }
-]
+const stats = computed(() => [
+  { label: '志愿方案', value: applicationCount.value, icon: 'Document', color: '#409eff' },
+  { label: '会员等级', value: memberInfo.value?.levelName || '免费用户', icon: 'Medal', color: '#67c23a' },
+  { label: '剩余天数', value: memberInfo.value?.remainingDays || 0, icon: 'Timer', color: '#e6a23c' }
+])
 
 const handleLogin = () => {
   // 触发全局事件来打开登录弹窗
@@ -152,7 +171,7 @@ const handleLogout = () => {
                       :sm="12"
                       :md="6"
                     >
-                      <div class="menu-item hover-lift">
+                      <div class="menu-item hover-lift" @click="router.push(item.path)">
                         <div class="menu-icon">
                           <el-icon :size="28"><component :is="item.icon" /></el-icon>
                         </div>

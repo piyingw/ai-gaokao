@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * - 订单号采用时间戳+随机数的方式生成，保证唯一性
  */
 @Data
-@TableName("order")
+@TableName("`order`")
 public class Order implements Serializable {
 
     private static final long serialVersionUID = 1L;

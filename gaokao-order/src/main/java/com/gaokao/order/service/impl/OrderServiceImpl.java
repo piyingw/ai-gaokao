@@ -184,6 +184,23 @@ public class OrderServiceImpl implements OrderService {
         paymentRecordMapper.insert(record);
 
         log.info("支付发起成功：orderNo={}, paymentNo={}", order.getOrderNo(), response.getPaymentNo());
+
+        // 8. Mock支付直接完成支付（无需等待回调）
+        if ("MOCK".equals(paymentMethod)) {
+            PaymentCallback mockCallback = new PaymentCallback();
+            mockCallback.setOrderNo(order.getOrderNo());
+            mockCallback.setPaymentNo(response.getPaymentNo());
+            mockCallback.setStatus("SUCCESS");
+            mockCallback.setChannel("MOCK");
+            mockCallback.setSign("mock_sign");
+
+            handlePaymentCallback(mockCallback);
+
+            // 返回成功状态
+            response.setStatus("SUCCESS");
+            response.setSuccess(true);
+        }
+
         return response;
     }
 

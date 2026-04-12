@@ -226,6 +226,26 @@ onUnmounted(() => {
                     <el-icon><User /></el-icon>
                     个人中心
                   </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/member')">
+                    <el-icon><Medal /></el-icon>
+                    会员中心
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/my-applications')">
+                    <el-icon><Document /></el-icon>
+                    我的志愿
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/my-orders')">
+                    <el-icon><ShoppingCart /></el-icon>
+                    我的订单
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/coupons')">
+                    <el-icon><Ticket /></el-icon>
+                    我的优惠券
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/policy')">
+                    <el-icon><Reading /></el-icon>
+                    政策文档
+                  </el-dropdown-item>
                   <el-dropdown-item command="logout" divided>
                     <el-icon><SwitchButton /></el-icon>
                     退出登录
