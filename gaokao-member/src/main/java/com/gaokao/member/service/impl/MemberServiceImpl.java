@@ -54,11 +54,6 @@ public class MemberServiceImpl implements MemberService {
      */
     private static final String USAGE_KEY_PREFIX = "gaokao:member:usage:";
 
-    /**
-     * 使用次数缓存过期时间（到当天结束）
-     */
-    private static final long USAGE_CACHE_EXPIRE = 24 * 60 * 60;
-
     @Override
     public Member getMemberByUserId(Long userId) {
         // 1. 先从缓存获取
@@ -118,14 +113,13 @@ public class MemberServiceImpl implements MemberService {
             member = createFreeMember(userId);
         }
 
-        // 计算新的过期时间
-        LocalDateTime startTime = LocalDateTime.now();
-        LocalDateTime endTime = startTime.plusDays(durationDays);
-
-        // 如果当前是付费会员，延长时间
-        if (member.getEndTime() != null && member.getEndTime().isAfter(startTime)) {
-            endTime = member.getEndTime().plusDays(durationDays);
+        // 计算新的过期时间（基于 max(now, oldEndTime) 确保过期后续费不丢失剩余天数）
+        LocalDateTime baseTime = LocalDateTime.now();
+        if (member.getEndTime() != null && member.getEndTime().isAfter(baseTime)) {
+            baseTime = member.getEndTime();
         }
+        LocalDateTime startTime = baseTime;
+        LocalDateTime endTime = baseTime.plusDays(durationDays);
 
         // 更新会员信息
         member.setLevel(level.getCode());
@@ -199,8 +193,12 @@ public class MemberServiceImpl implements MemberService {
         // 使用Redis原子计数器增加使用次数
         Long count = redisTemplate.opsForValue().increment(usageKey);
         if (count != null && count == 1) {
-            // 第一次使用，设置过期时间（到当天结束）
-            redisTemplate.expire(usageKey, USAGE_CACHE_EXPIRE, TimeUnit.SECONDS);
+            // 第一次使用，设置过期时间（到当天结束，精确计算）
+            long secondsToMidnight = java.time.Duration.between(
+                    LocalDateTime.now(),
+                    LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0)
+            ).getSeconds();
+            redisTemplate.expire(usageKey, secondsToMidnight, TimeUnit.SECONDS);
         }
         log.debug("权益使用次数增加：key={}, count={}", usageKey, count);
     }
@@ -235,5 +233,21 @@ public class MemberServiceImpl implements MemberService {
         }
 
         log.info("过期会员处理完成，共处理{}个会员", expiredMembers.size());
+    }
+
+    @Override
+    @Transactional
+    public void incrementTotalSpent(Long userId, java.math.BigDecimal amount) {
+        log.info("增加累计消费金额：userId={}, amount={}", userId, amount);
+        Member member = memberMapper.selectOne(
+                new LambdaQueryWrapper<Member>()
+                        .eq(Member::getUserId, userId)
+                        .eq(Member::getDeleted, 0)
+        );
+        if (member != null) {
+            member.setTotalSpent(member.getTotalSpent().add(amount));
+            memberMapper.updateById(member);
+            clearMemberCache(userId);
+        }
     }
 }

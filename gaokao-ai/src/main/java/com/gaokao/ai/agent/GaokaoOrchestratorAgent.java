@@ -8,7 +8,7 @@ import com.gaokao.ai.agent.model.AgentRoute;
 import com.gaokao.ai.entity.LongTermMemory;
 import com.gaokao.ai.service.LongTermMemoryService;
 import com.gaokao.ai.skill.SkillExecutor;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,12 +26,12 @@ import java.util.stream.Collectors;
 @Component
 public class GaokaoOrchestratorAgent {
 
-    private final ChatLanguageModel chatModel;
+    private final ChatModel chatModel;
     private final SkillExecutor skillExecutor;
     private final LongTermMemoryService longTermMemoryService;
     private final Map<String, GaokaoAgent> agents;
 
-    public GaokaoOrchestratorAgent(ChatLanguageModel chatModel,
+    public GaokaoOrchestratorAgent(ChatModel chatModel,
                                    SkillExecutor skillExecutor,
                                    LongTermMemoryService longTermMemoryService,
                                    RecommendAgent recommendAgent,
@@ -197,7 +197,7 @@ public class GaokaoOrchestratorAgent {
         try {
             // 使用 AiServices 创建路由助手
             RouterAssistant routerAssistant = AiServices.builder(RouterAssistant.class)
-                    .chatLanguageModel(chatModel)
+                    .chatModel(chatModel)
                     .systemMessageProvider(id -> ROUTER_SYSTEM_PROMPT)
                     .build();
 

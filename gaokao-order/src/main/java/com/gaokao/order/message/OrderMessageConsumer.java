@@ -1,139 +1,92 @@
 package com.gaokao.order.message;
 
-import com.gaokao.order.service.OrderService;
+import com.alibaba.fastjson2.JSON;
+import com.gaokao.order.event.OrderEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.annotation.SelectorType;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.common.message.MessageExt;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 订单消息消费者
  *
- * 设计说明：
- * - 消费订单相关消息
- * - 处理订单超时、支付成功等事件
- * - 实现消息幂等性处理
+ * 使用 RocketMQ 4.x 原生 API 实现 MessageListenerConcurrently
  *
- * 技术亮点：
- * - 使用@RocketMQMessageListener注解实现消息监听
- * - 消费者组保证集群消费
- * - Redis实现消息幂等性
- *
- * 简历价值：
- * - 展示消息消费设计思路
- * - 展示消息幂等性处理
+ * 架构改进：通过 Spring 事件机制解耦，消费者只负责消息解析和发布事件，
+ * 业务逻辑由 OrderEventListener 处理，避免循环依赖
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@RocketMQMessageListener(
-        topic = "gaokao-order",
-        consumerGroup = "gaokao-order-consumer",
-        selectorType = SelectorType.TAG,
-        selectorExpression = "*"
-)
-public class OrderMessageConsumer implements RocketMQListener<OrderMessage> {
+public class OrderMessageConsumer implements MessageListenerConcurrently {
 
-    private final OrderService orderService;
+    private final ApplicationEventPublisher eventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    /**
-     * 消息幂等性Key前缀
-     */
     private static final String MESSAGE_IDEMPOTENT_KEY = "gaokao:mq:consumed:";
-
-    /**
-     * 幂等性过期时间（24小时）
-     */
     private static final long IDEMPOTENT_EXPIRE = 24 * 60 * 60;
 
     @Override
-    public void onMessage(OrderMessage message) {
-        log.info("消费订单消息：type={}, orderId={}", message.getMessageType(), message.getOrderId());
+    public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+        for (MessageExt msg : msgs) {
+            try {
+                String json = new String(msg.getBody());
+                OrderMessage message = JSON.parseObject(json, OrderMessage.class);
 
-        // 幂等性校验：使用消息ID防止重复消费
-        String messageId = buildMessageId(message);
-        String idempotentKey = MESSAGE_IDEMPOTENT_KEY + messageId;
+                log.info("消费订单消息：type={}, orderId={}", message.getMessageType(), message.getOrderId());
 
-        // 检查是否已消费
-        Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", IDEMPOTENT_EXPIRE, TimeUnit.SECONDS);
-        if (Boolean.FALSE.equals(isNew)) {
-            log.warn("消息已消费，跳过：messageId={}", messageId);
-            return;
-        }
+                // 幂等性校验
+                String messageId = buildMessageId(message);
+                String idempotentKey = MESSAGE_IDEMPOTENT_KEY + messageId;
 
-        try {
-            switch (message.getMessageType()) {
-                case OrderMessage.TYPE_ORDER_CREATE:
-                    handleOrderCreate(message);
-                    break;
-                case OrderMessage.TYPE_ORDER_PAY_SUCCESS:
-                    handlePaySuccess(message);
-                    break;
-                case OrderMessage.TYPE_ORDER_TIMEOUT:
-                    handleOrderTimeout(message);
-                    break;
-                case OrderMessage.TYPE_ORDER_CANCEL:
-                    handleOrderCancel(message);
-                    break;
-                default:
-                    log.warn("未知的消息类型：{}", message.getMessageType());
+                Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", IDEMPOTENT_EXPIRE, TimeUnit.SECONDS);
+                if (Boolean.FALSE.equals(isNew)) {
+                    log.warn("消息已消费，跳过：messageId={}", messageId);
+                    continue;
+                }
+
+                // 发布事件，由事件监听器处理业务逻辑
+                publishEvent(message);
+
+            } catch (Exception e) {
+                log.error("订单消息处理失败", e);
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
-        } catch (Exception e) {
-            log.error("订单消息处理失败", e);
-            // 处理失败，删除幂等性标记，允许重试
-            redisTemplate.delete(idempotentKey);
-            throw new RuntimeException("消息处理失败，触发重试", e);
         }
+        return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
     }
 
-    /**
-     * 构建消息唯一ID
-     */
     private String buildMessageId(OrderMessage message) {
         return message.getMessageType() + ":" + message.getOrderId() + ":" + message.getMessageTime();
     }
 
     /**
-     * 处理订单创建消息
-     * 可以用于发送通知、记录日志等
+     * 根据消息类型发布对应事件
      */
-    private void handleOrderCreate(OrderMessage message) {
-        log.info("处理订单创建：orderNo={}", message.getOrderNo());
-        // TODO: 发送订单创建通知
-    }
-
-    /**
-     * 处理支付成功消息
-     * 可以用于发送通知、记录统计等
-     */
-    private void handlePaySuccess(OrderMessage message) {
-        log.info("处理支付成功：orderNo={}", message.getOrderNo());
-        // TODO: 发送支付成功通知、更新统计数据
-    }
-
-    /**
-     * 处理订单超时消息
-     * 取消超时订单
-     */
-    private void handleOrderTimeout(OrderMessage message) {
-        log.info("处理订单超时：orderNo={}", message.getOrderNo());
-
-        // 取消超时订单
-        orderService.cancelOrder(message.getOrderId(), "订单超时自动取消");
-    }
-
-    /**
-     * 处理订单取消消息
-     * 可以用于退还优惠券、发送通知等
-     */
-    private void handleOrderCancel(OrderMessage message) {
-        log.info("处理订单取消：orderNo={}", message.getOrderNo());
-        // TODO: 退还优惠券、发送取消通知
+    private void publishEvent(OrderMessage message) {
+        switch (message.getMessageType()) {
+            case OrderMessage.TYPE_ORDER_CREATE:
+                eventPublisher.publishEvent(new OrderEvent.OrderCreateEvent(this, message));
+                break;
+            case OrderMessage.TYPE_ORDER_PAY_SUCCESS:
+                eventPublisher.publishEvent(new OrderEvent.PaySuccessEvent(this, message));
+                break;
+            case OrderMessage.TYPE_ORDER_TIMEOUT:
+                eventPublisher.publishEvent(new OrderEvent.OrderTimeoutEvent(this, message));
+                break;
+            case OrderMessage.TYPE_ORDER_CANCEL:
+                eventPublisher.publishEvent(new OrderEvent.OrderCancelEvent(this, message));
+                break;
+            default:
+                log.warn("未知的消息类型：{}", message.getMessageType());
+        }
     }
 }

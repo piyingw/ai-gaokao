@@ -19,7 +19,15 @@
       "Bash(findstr \"8088\")",
       "Bash(tasklist)",
       "Bash(findstr \"java\")",
-      "Bash(bash commit-plan.sh)"
+      "Bash(bash commit-plan.sh)",
+      "Bash(curl -s \"https://repo1.maven.org/maven2/org/apache/rocketmq/rocketmq-spring-boot-starter/maven-metadata.xml\")",
+      "Bash(mvn spring-boot:run)",
+      "Bash(mysql:*)",
+      "Bash(mvn spring-boot:run -Dspring-boot.run.profiles=dev)",
+      "Bash(tail -100 \"C:\\\\\\\\Users\\\\\\\\30887\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--Javacode-ai-gaokao\\\\\\\\4e52481c-660f-48bb-96a9-2b44386e1fe2\\\\\\\\tasks\\\\\\\\bbqz04aaj.output\")",
+      "Bash(tail -50 \"C:\\\\\\\\Users\\\\\\\\30887\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--Javacode-ai-gaokao\\\\\\\\4e52481c-660f-48bb-96a9-2b44386e1fe2\\\\\\\\tasks\\\\\\\\bqvzfm9gl.output\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:central.sonatype.com)"
     ]
   }
 }

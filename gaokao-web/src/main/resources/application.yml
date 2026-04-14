@@ -93,7 +93,7 @@ langchain4j:
 
   # 向量存储配置
   vectorstore:
-    # 类型: memory(内存) 或 pgvector(PostgreSQL) 或 elasticsearch
+    # 类型: elasticsearch(生产) 或 memory(开发测试) 或 pgvector(PostgreSQL)
     type: elasticsearch
     elasticsearch:
       index: gaokao_embeddings

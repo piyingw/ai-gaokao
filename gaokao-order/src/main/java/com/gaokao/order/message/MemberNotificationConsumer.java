@@ -1,38 +1,42 @@
 package com.gaokao.order.message;
 
-import lombok.RequiredArgsConstructor;
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 会员通知消息消费者
  *
- * 处理会员开通、升级等通知
+ * 使用 RocketMQ 4.x 原生 API 实现 MessageListenerConcurrently
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-@RocketMQMessageListener(
-        topic = "gaokao-member",
-        consumerGroup = "gaokao-member-consumer"
-)
-public class MemberNotificationConsumer implements RocketMQListener<MessageProducer.MemberNotification> {
+public class MemberNotificationConsumer implements MessageListenerConcurrently {
 
     @Override
-    public void onMessage(MessageProducer.MemberNotification notification) {
-        log.info("消费会员通知：userId={}, level={}", notification.getUserId(), notification.getLevel());
+    public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+        for (MessageExt msg : msgs) {
+            try {
+                String json = new String(msg.getBody());
+                MessageProducer.MemberNotification notification = JSON.parseObject(json, MessageProducer.MemberNotification.class);
 
-        try {
-            // TODO: 发送短信/邮件/站内消息通知用户会员开通成功
-            // 可以集成短信服务、邮件服务、WebSocket推送等
+                log.info("消费会员通知：userId={}, level={}", notification.getUserId(), notification.getLevel());
 
-            log.info("会员通知处理完成：userId={}", notification.getUserId());
+                // TODO: 发送短信/邮件/站内消息通知用户会员开通成功
 
-        } catch (Exception e) {
-            log.error("会员通知处理失败", e);
-            throw new RuntimeException("会员通知处理失败", e);
+                log.info("会员通知处理完成：userId={}", notification.getUserId());
+
+            } catch (Exception e) {
+                log.error("会员通知处理失败", e);
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+            }
         }
+        return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
     }
 }

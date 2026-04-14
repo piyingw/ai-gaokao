@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -72,39 +73,30 @@ public class OrderServiceImpl implements OrderService {
      */
     private static final int ORDER_TIMEOUT_MINUTES = 30;
 
+    /**
+     * 会员商品信息配置
+     * Key: productId, Value: {会员等级, 有效天数, 价格, 商品名称}
+     */
+    private static final Map<Long, ProductInfo> PRODUCTS = Map.of(
+            1L, new ProductInfo(MemberLevel.NORMAL, 365, new BigDecimal("98.00"), "普通会员（年卡）"),
+            2L, new ProductInfo(MemberLevel.VIP, 365, new BigDecimal("298.00"), "VIP会员（年卡）"),
+            3L, new ProductInfo(MemberLevel.NORMAL, 30, new BigDecimal("19.00"), "普通会员（月卡）"),
+            4L, new ProductInfo(MemberLevel.VIP, 30, new BigDecimal("49.00"), "VIP会员（月卡）")
+    );
+
+    /**
+     * 会员商品信息
+     */
+    private record ProductInfo(MemberLevel level, int durationDays, BigDecimal amount, String productName) {}
+
     @Override
     @Transactional
     public Order createMembershipOrder(Long userId, Long productId) {
         log.info("创建会员订单：userId={}, productId={}", userId, productId);
 
-        // 1. 获取商品信息（这里简化处理，实际需要查询商品表）
-        // 商品ID对应会员等级：1=NORMAL年卡, 2=VIP年卡, 3=NORMAL月卡, 4=VIP月卡
-        MemberLevel level;
-        int durationDays;
-        BigDecimal amount;
-        String productName;
-
-        if (productId == 1L) {
-            level = MemberLevel.NORMAL;
-            durationDays = 365;
-            amount = new BigDecimal("98.00");
-            productName = "普通会员（年卡）";
-        } else if (productId == 2L) {
-            level = MemberLevel.VIP;
-            durationDays = 365;
-            amount = new BigDecimal("298.00");
-            productName = "VIP会员（年卡）";
-        } else if (productId == 3L) {
-            level = MemberLevel.NORMAL;
-            durationDays = 30;
-            amount = new BigDecimal("19.00");
-            productName = "普通会员（月卡）";
-        } else if (productId == 4L) {
-            level = MemberLevel.VIP;
-            durationDays = 30;
-            amount = new BigDecimal("49.00");
-            productName = "VIP会员（月卡）";
-        } else {
+        // 1. 获取商品信息
+        ProductInfo product = PRODUCTS.get(productId);
+        if (product == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "无效的商品ID");
         }
 
@@ -114,13 +106,20 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(userId);
         order.setOrderType(OrderType.MEMBERSHIP.getCode());
         order.setProductId(productId);
-        order.setProductName(productName);
-        order.setAmount(amount);
-        order.setPayAmount(amount);  // 暂不处理优惠券
+        order.setProductName(product.productName());
+        order.setAmount(product.amount());
+        order.setPayAmount(product.amount());  // 暂不处理优惠券
         order.setStatus(OrderStatus.PENDING.getCode());
         order.setExpireTime(LocalDateTime.now().plusMinutes(ORDER_TIMEOUT_MINUTES));
 
         orderMapper.insert(order);
+
+        // 验证订单是否创建成功（防止事务回滚导致订单不存在）
+        if (order.getId() == null) {
+            log.error("订单创建失败：orderId为null，userId={}, productId={}", userId, productId);
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "订单创建失败，请重试");
+        }
+        log.info("订单数据库插入成功：id={}, orderNo={}", order.getId(), order.getOrderNo());
 
         // 发送延迟消息，用于订单超时自动取消
         // RocketMQ延迟级别16 = 30分钟
@@ -140,7 +139,8 @@ public class OrderServiceImpl implements OrderService {
         // 1. 获取订单
         Order order = getOrderById(orderId);
         if (order == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "订单不存在");
+            log.error("订单不存在：orderId={}，可能原因：1)订单ID无效 2)订单已被删除 3)创建订单事务回滚", orderId);
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND, "订单不存在");
         }
 
         // 2. 校验订单状态
@@ -251,9 +251,12 @@ public class OrderServiceImpl implements OrderService {
 
             // 7. 开通会员（事务一致性）
             if (OrderType.MEMBERSHIP.getCode().equals(order.getOrderType())) {
-                MemberLevel level = MemberLevel.fromCode(getLevelByProductId(order.getProductId()));
-                int durationDays = getDurationByProductId(order.getProductId());
-                memberService.upgradeMember(order.getUserId(), level, durationDays);
+                ProductInfo product = PRODUCTS.get(order.getProductId());
+                if (product != null) {
+                    memberService.upgradeMember(order.getUserId(), product.level(), product.durationDays());
+                    // 更新累计消费金额
+                    memberService.incrementTotalSpent(order.getUserId(), order.getPayAmount());
+                }
             }
 
             // 8. 标记回调已处理（幂等性）
@@ -267,8 +270,10 @@ public class OrderServiceImpl implements OrderService {
 
             // 10. 发送会员开通通知
             if (OrderType.MEMBERSHIP.getCode().equals(order.getOrderType())) {
-                MemberLevel level = MemberLevel.fromCode(getLevelByProductId(order.getProductId()));
-                messageProducer.sendMemberNotification(order.getUserId(), level.getCode());
+                ProductInfo product = PRODUCTS.get(order.getProductId());
+                if (product != null) {
+                    messageProducer.sendMemberNotification(order.getUserId(), product.level().getCode());
+                }
             }
 
             // 11. 完成订单
@@ -281,14 +286,21 @@ public class OrderServiceImpl implements OrderService {
             log.warn("支付失败：orderNo={}, error={}", orderNo, callback.getErrorMessage());
         }
 
-        // 10. 更新支付记录
+        // 10. 更新支付记录（无条件更新状态和回调时间）
         LambdaUpdateWrapper<PaymentRecord> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(PaymentRecord::getOrderId, order.getId())
                      .set(PaymentRecord::getStatus, success ? "SUCCESS" : "FAILED")
                      .set(PaymentRecord::getCallbackTime, LocalDateTime.now())
-                     .set(PaymentRecord::getCallbackData, callback.getRawData())
-                     .set(success ? null : PaymentRecord::getErrorMessage, callback.getErrorMessage());
+                     .set(PaymentRecord::getCallbackData, callback.getRawData());
         paymentRecordMapper.update(null, updateWrapper);
+
+        // 失败时更新错误信息
+        if (!success) {
+            LambdaUpdateWrapper<PaymentRecord> errorWrapper = new LambdaUpdateWrapper<>();
+            errorWrapper.eq(PaymentRecord::getOrderId, order.getId())
+                        .set(PaymentRecord::getErrorMessage, callback.getErrorMessage());
+            paymentRecordMapper.update(null, errorWrapper);
+        }
 
         return success;
     }
@@ -445,23 +457,15 @@ public class OrderServiceImpl implements OrderService {
      * 根据商品ID获取会员等级
      */
     private String getLevelByProductId(Long productId) {
-        if (productId == 1L || productId == 3L) {
-            return MemberLevel.NORMAL.getCode();
-        } else if (productId == 2L || productId == 4L) {
-            return MemberLevel.VIP.getCode();
-        }
-        return MemberLevel.FREE.getCode();
+        ProductInfo product = PRODUCTS.get(productId);
+        return product != null ? product.level().getCode() : MemberLevel.FREE.getCode();
     }
 
     /**
      * 根据商品ID获取有效天数
      */
     private int getDurationByProductId(Long productId) {
-        if (productId == 1L || productId == 2L) {
-            return 365;
-        } else if (productId == 3L || productId == 4L) {
-            return 30;
-        }
-        return 0;
+        ProductInfo product = PRODUCTS.get(productId);
+        return product != null ? product.durationDays() : 0;
     }
 }

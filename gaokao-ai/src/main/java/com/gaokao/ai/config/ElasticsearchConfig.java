@@ -37,12 +37,10 @@ public class ElasticsearchConfig {
     @Value("${elasticsearch.use-ssl:false}")
     private boolean useSsl;
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public RestClient restClient() {
-        // 创建 HTTP 客户端
         RestClientBuilder builder = RestClient.builder(new HttpHost(host, port, useSsl ? "https" : "http"));
 
-        // 如果提供了用户名密码，则设置认证信息
         if (username != null && !username.isEmpty() && password != null && !password.isEmpty()) {
             final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,
@@ -54,13 +52,10 @@ public class ElasticsearchConfig {
         return builder.build();
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public ElasticsearchClient elasticsearchClient(RestClient restClient) {
-        // 创建传输层
         ElasticsearchTransport transport = new RestClientTransport(
                 restClient, new JacksonJsonpMapper());
-
-        // 创建客户端
         return new ElasticsearchClient(transport);
     }
 }

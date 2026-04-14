@@ -4,7 +4,9 @@ import com.gaokao.common.result.Result;
 import com.gaokao.promotion.entity.CouponTemplate;
 import com.gaokao.promotion.entity.UserCoupon;
 import com.gaokao.promotion.service.CouponService;
+import com.gaokao.promotion.service.CouponAsyncClaimService;
 import com.gaokao.promotion.vo.UserCouponVO;
+import com.gaokao.promotion.vo.CouponClaimResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +22,9 @@ import java.util.List;
  *
  * API设计：
  * - GET  /api/coupon/templates        - 获取可领取的优惠券列表
- * - POST /api/coupon/claim/{id}       - 领取优惠券
+ * - POST /api/coupon/claim/{id}       - 领取优惠券（同步）
+ * - POST /api/coupon/seckill/{id}     - 秒杀领取优惠券（异步）
+ * - GET  /api/coupon/result/{eventId} - 查询秒杀领取结果
  * - GET  /api/coupon/list             - 获取我的优惠券列表
  * - GET  /api/coupon/available        - 获取可用优惠券（下单时）
  * - POST /api/coupon/calculate        - 计算优惠金额
@@ -29,6 +33,7 @@ import java.util.List;
  * - Redis原子扣减库存
  * - Redisson分布式锁
  * - 防重校验机制
+ * - MQ异步秒杀（高并发场景）
  */
 @Slf4j
 @Tag(name = "优惠券管理", description = "优惠券领取、使用、查询")
@@ -38,6 +43,7 @@ import java.util.List;
 public class CouponController {
 
     private final CouponService couponService;
+    private final CouponAsyncClaimService couponAsyncClaimService;
 
     @Operation(summary = "获取可领取的优惠券列表")
     @GetMapping("/templates")
@@ -93,5 +99,30 @@ public class CouponController {
 
         BigDecimal discount = couponService.calculateDiscount(couponCode, orderAmount);
         return Result.success(discount);
+    }
+
+    @Operation(summary = "秒杀领取优惠券（异步）", description = "高并发场景使用，先预检资格后异步处理")
+    @PostMapping("/seckill/{templateId}")
+    public Result<CouponClaimResultVO> seckillClaimCoupon(
+            @RequestAttribute("userId") Long userId,
+            @PathVariable Long templateId) {
+
+        log.info("秒杀领取优惠券：userId={}, templateId={}", userId, templateId);
+
+        // 提交异步领取请求
+        CouponClaimResultVO result = couponAsyncClaimService.submitClaimRequest(userId, templateId);
+
+        return Result.success(result);
+    }
+
+    @Operation(summary = "查询秒杀领取结果")
+    @GetMapping("/result/{eventId}")
+    public Result<CouponClaimResultVO> queryClaimResult(@PathVariable String eventId) {
+
+        log.info("查询秒杀领取结果：eventId={}", eventId);
+
+        CouponClaimResultVO result = couponAsyncClaimService.queryClaimResult(eventId);
+
+        return Result.success(result);
     }
 }

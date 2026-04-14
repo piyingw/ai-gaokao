@@ -1,39 +1,44 @@
 package com.gaokao.order.message;
 
-import lombok.RequiredArgsConstructor;
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 系统通知消息消费者
  *
- * 处理系统通知推送
+ * 使用 RocketMQ 4.x 原生 API 实现 MessageListenerConcurrently
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-@RocketMQMessageListener(
-        topic = "gaokao-notification",
-        consumerGroup = "gaokao-notification-consumer"
-)
-public class SystemNotificationConsumer implements RocketMQListener<MessageProducer.SystemNotification> {
+public class SystemNotificationConsumer implements MessageListenerConcurrently {
 
     @Override
-    public void onMessage(MessageProducer.SystemNotification notification) {
-        log.info("消费系统通知：userId={}, title={}", notification.getUserId(), notification.getTitle());
+    public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+        for (MessageExt msg : msgs) {
+            try {
+                String json = new String(msg.getBody());
+                MessageProducer.SystemNotification notification = JSON.parseObject(json, MessageProducer.SystemNotification.class);
 
-        try {
-            // TODO: 保存站内消息到数据库
-            // TODO: WebSocket实时推送
-            // TODO: 短信/邮件通知
+                log.info("消费系统通知：userId={}, title={}", notification.getUserId(), notification.getTitle());
 
-            log.info("系统通知处理完成：userId={}, title={}", notification.getUserId(), notification.getTitle());
+                // TODO: 保存站内消息到数据库
+                // TODO: WebSocket实时推送
+                // TODO: 短信/邮件通知
 
-        } catch (Exception e) {
-            log.error("系统通知处理失败", e);
-            throw new RuntimeException("系统通知处理失败", e);
+                log.info("系统通知处理完成：userId={}, title={}", notification.getUserId(), notification.getTitle());
+
+            } catch (Exception e) {
+                log.error("系统通知处理失败", e);
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+            }
         }
+        return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
     }
 }

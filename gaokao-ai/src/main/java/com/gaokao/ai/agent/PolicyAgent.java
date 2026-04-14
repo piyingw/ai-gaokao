@@ -5,7 +5,7 @@ import com.gaokao.ai.agent.model.AgentResponse;
 import com.gaokao.ai.tool.SkillTool;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
@@ -21,12 +21,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class PolicyAgent implements GaokaoAgent {
 
-    private final ChatLanguageModel chatModel;
+    private final ChatModel chatModel;
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final SkillTool skillTool;
 
-    public PolicyAgent(ChatLanguageModel chatModel,
+    public PolicyAgent(ChatModel chatModel,
                        EmbeddingModel embeddingModel,
                        EmbeddingStore<TextSegment> embeddingStore,
                        SkillTool skillTool) {
@@ -61,7 +61,7 @@ public class PolicyAgent implements GaokaoAgent {
 
             // 构建 AI Service with RAG
             PolicyAssistant assistant = AiServices.builder(PolicyAssistant.class)
-                    .chatLanguageModel(chatModel)
+                    .chatModel(chatModel)
                     .tools(skillTool)
                     .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                     .contentRetriever(retriever)

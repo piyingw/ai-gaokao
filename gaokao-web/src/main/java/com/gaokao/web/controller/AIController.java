@@ -41,7 +41,7 @@ public class AIController {
     private final GaokaoOrchestratorAgent orchestratorAgent;
 
     @Operation(summary = "AI 智能对话", description = "支持多轮对话，自动识别意图并路由到对应Agent")
-    @MemberOnly(privilegeCode = "AI_CHAT", message = "AI对话次数已达上限，请升级会员")
+    @MemberOnly(level = MemberLevel.FREE, privilegeCode = "AI_CHAT", message = "AI对话次数已达上限，请升级会员")
     @RateLimit(permits = 10, timeWindow = 60, type = RateLimitType.USER, message = "对话请求过于频繁，请稍后再试")
     @PostMapping("/chat")
     public Result<ChatResponseVO> chat(

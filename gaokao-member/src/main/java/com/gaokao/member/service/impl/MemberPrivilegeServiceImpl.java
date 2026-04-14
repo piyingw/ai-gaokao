@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -100,9 +101,15 @@ public class MemberPrivilegeServiceImpl implements MemberPrivilegeService {
     public void refreshCache() {
         log.info("刷新权益配置缓存...");
 
-        // 清除所有权益缓存
-        redisTemplate.delete(PRIVILEGE_CACHE_KEY + "*");
-        redisTemplate.delete(PRIVILEGES_LIST_CACHE_KEY + "*");
+        // 清除所有权益缓存（使用 keys 匹配模式）
+        Set<String> privilegeKeys = redisTemplate.keys(PRIVILEGE_CACHE_KEY + "*");
+        if (privilegeKeys != null && !privilegeKeys.isEmpty()) {
+            redisTemplate.delete(privilegeKeys);
+        }
+        Set<String> privilegesListKeys = redisTemplate.keys(PRIVILEGES_LIST_CACHE_KEY + "*");
+        if (privilegesListKeys != null && !privilegesListKeys.isEmpty()) {
+            redisTemplate.delete(privilegesListKeys);
+        }
 
         // 预热缓存
         List<MemberPrivilege> allPrivileges = getAllPrivileges();

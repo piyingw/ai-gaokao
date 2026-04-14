@@ -78,4 +78,12 @@ public interface MemberService {
      * 扫描所有即将过期或已过期的会员，进行降级处理
      */
     void processExpiredMembers();
+
+    /**
+     * 增加会员累计消费金额
+     *
+     * @param userId 用户ID
+     * @param amount 消费金额
+     */
+    void incrementTotalSpent(Long userId, java.math.BigDecimal amount);
 }

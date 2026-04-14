@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { memberApi, orderApi } from '@/services/api'
 import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -13,6 +13,7 @@ const memberInfo = ref(null)
 const privileges = ref([])
 const products = ref([])
 const purchasing = ref(false)
+const pendingOrder = ref(null)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
@@ -39,12 +40,66 @@ const fetchMemberInfo = async () => {
   }
 }
 
+// 检查待支付订单
+const checkPendingOrder = async () => {
+  if (!isLoggedIn.value) return
+
+  try {
+    const res = await orderApi.getOrderList('PENDING')
+    const pendingList = (res.data || []).filter(o => o.orderType === 'MEMBERSHIP')
+    if (pendingList.length > 0) {
+      pendingOrder.value = pendingList[0]
+      try {
+        await ElMessageBox.confirm(
+          `您有一笔待支付的订单：${pendingOrder.value.productName}，是否继续支付？`,
+          '发现未完成订单',
+          { confirmButtonText: '继续支付', cancelButtonText: '取消' }
+        )
+        await payForOrder(pendingOrder.value.id)
+      } catch {
+        // 用户取消
+      }
+    }
+  } catch (error) {
+    console.error('检查待支付订单失败:', error)
+  }
+}
+
+// 支付指定订单
+const payForOrder = async (orderId) => {
+  try {
+    purchasing.value = true
+    await orderApi.payOrder(orderId, 'MOCK')
+    ElMessage.success('支付成功！会员已激活')
+    pendingOrder.value = null
+    await fetchMemberInfo()
+  } catch (error) {
+    console.error('支付失败:', error)
+    ElMessage.error('支付失败：' + (error.message || '请稍后重试'))
+  } finally {
+    purchasing.value = false
+  }
+}
+
 // Mock支付购买会员
 const purchaseMember = async (productId) => {
   if (!isLoggedIn.value) {
     ElMessage.warning('请先登录')
     router.push('/user')
     return
+  }
+
+  const product = products.value.find(p => p.id === productId)
+  const productName = product ? product.name : ''
+
+  try {
+    await ElMessageBox.confirm(
+      `确认购买 ${productName} ？`,
+      '确认购买',
+      { confirmButtonText: '确认支付', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return // 用户取消
   }
 
   try {
@@ -63,7 +118,18 @@ const purchaseMember = async (productId) => {
     await fetchMemberInfo()
   } catch (error) {
     console.error('购买失败:', error)
-    ElMessage.error('购买失败：' + (error.message || '请稍后重试'))
+    // 如果是订单创建成功但支付失败，引导用户去订单列表继续支付
+    if (error.message && error.message.includes('支付')) {
+      ElMessageBox.confirm(
+        '订单已创建但支付未完成，是否前往订单列表继续支付？',
+        '支付未完成',
+        { confirmButtonText: '前往订单列表', cancelButtonText: '取消' }
+      ).then(() => {
+        router.push('/my-orders')
+      }).catch(() => {})
+    } else {
+      ElMessage.error('购买失败：' + (error.message || '请稍后重试'))
+    }
   } finally {
     purchasing.value = false
   }
@@ -86,6 +152,7 @@ const remainingDays = computed(() => {
 
 onMounted(() => {
   fetchMemberInfo()
+  checkPendingOrder()
 })
 </script>
 

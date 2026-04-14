@@ -58,7 +58,10 @@ public class OrderController {
         // 创建会员购买订单
         Order order = orderService.createMembershipOrder(userId, dto.getProductId());
 
+        log.info("订单创建完成：数据库返回ID={}, orderNo={}", order.getId(), order.getOrderNo());
+
         OrderVO vo = convertToVO(order);
+        log.info("返回前端VO.id={}", vo.getId());
         return Result.success(vo);
     }
 
@@ -81,12 +84,21 @@ public class OrderController {
             orderId = order.getId();
         }
 
+        // 验证订单归属
+        Order order = orderService.getOrderById(orderId);
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND, "订单不存在");
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权操作此订单");
+        }
+
         // 发起支付
         PaymentResponse response = orderService.initiatePayment(orderId, dto.getPaymentMethod());
 
         // 获取更新后的订单
-        Order order = orderService.getOrderById(orderId);
-        OrderVO vo = convertToVO(order);
+        Order updatedOrder = orderService.getOrderById(orderId);
+        OrderVO vo = convertToVO(updatedOrder);
         vo.setPayUrl(response.getPayUrl());  // 返回支付链接
 
         return Result.success(vo);

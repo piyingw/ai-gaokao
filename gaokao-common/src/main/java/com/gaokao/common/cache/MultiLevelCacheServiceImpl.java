@@ -21,9 +21,9 @@ import java.util.function.Supplier;
  * L1: Caffeine本地缓存（容量1000，过期时间5分钟）
  * L2: Redis分布式缓存
  *
- * 缓存穿透防护：空值标记
- * 缓存击穿防护：Redisson分布式锁
- * 缓存雪崩防护：随机过期时间（父类实现）
+ * 缓存穿透防护：布隆过滤器 + 空值标记双重保障
+ * 缓存击穿防护：Redisson分布式锁 / 逻辑过期方案
+ * 缓存雪崩防护：随机过期时间
  */
 @Slf4j
 @Service
@@ -32,6 +32,7 @@ public class MultiLevelCacheServiceImpl implements MultiLevelCacheService {
 
     private final StringRedisTemplate redisTemplate;
     private final RedissonClient redissonClient;
+    private final BloomFilterService bloomFilterService;
 
     /**
      * 本地缓存最大容量
@@ -323,5 +324,199 @@ public class MultiLevelCacheServiceImpl implements MultiLevelCacheService {
         redisTemplate.opsForValue().set(key, json, actualExpire, TimeUnit.SECONDS);
         log.debug("Redis缓存设置: key={}, expire={}s (基础{}s, 偏移{}s)",
                 key, actualExpire, baseExpireSeconds, randomOffset);
+    }
+
+    /**
+     * 带布隆过滤器的查询（防止缓存穿透）
+     *
+     * 设计说明：
+     * 1. 先通过布隆过滤器判断Key是否可能存在
+     * 2. 如果布隆过滤器判断不存在，直接返回null，无需查询数据库
+     * 3. 如果布隆过滤器判断可能存在，继续正常缓存查询流程
+     * 4. 查询结果为空时，仍然缓存空值标记（双重保障）
+     *
+     * 注意：布隆过滤器可能存在误判（判断存在但实际不存在）
+     *       但不会漏判（判断不存在则一定不存在）
+     *       所以当判断不存在时，可以放心返回null
+     */
+    @Override
+    public <T> T getWithBloomFilter(String key, Class<T> clazz, Supplier<T> supplier,
+                                    long expireSeconds, String bloomFilterType) {
+        // 1. 先查本地缓存
+        Object localValue = localCache.getIfPresent(key);
+        if (localValue != null) {
+            if (NULL_VALUE.equals(localValue)) {
+                return null;
+            }
+            log.debug("本地缓存命中(布隆过滤器模式): {}", key);
+            return (T) localValue;
+        }
+
+        // 2. 布隆过滤器判断（防止缓存穿透）
+        String keyId = extractIdFromKey(key);
+        boolean mightExist = checkBloomFilter(keyId, bloomFilterType);
+
+        if (!mightExist) {
+            log.warn("布隆过滤器判断不存在，直接返回null: key={}, type={}", key, bloomFilterType);
+            return null;
+        }
+
+        // 3. 布隆过滤器判断可能存在，继续正常查询流程
+        return getOrLoadWithLock(key, clazz, supplier, expireSeconds);
+    }
+
+    /**
+     * 根据类型检查布隆过滤器
+     */
+    private boolean checkBloomFilter(String keyId, String bloomFilterType) {
+        if (bloomFilterType == null || bloomFilterType.isEmpty()) {
+            // 未指定类型，使用通用布隆过滤器
+            return bloomFilterService.mightContainKey(keyId);
+        }
+
+        switch (bloomFilterType.toLowerCase()) {
+            case "university":
+                return bloomFilterService.mightContainUniversity(keyId);
+            case "major":
+                return bloomFilterService.mightContainMajor(keyId);
+            default:
+                return bloomFilterService.mightContainKey(keyId);
+        }
+    }
+
+    /**
+     * 从缓存Key中提取ID
+     * 例如：gaokao:university:123 -> 123
+     */
+    private String extractIdFromKey(String key) {
+        if (key == null) {
+            return "";
+        }
+        String[] parts = key.split(":");
+        return parts.length > 0 ? parts[parts.length - 1] : key;
+    }
+
+    /**
+     * 逻辑过期缓存查询（防止缓存击穿）
+     *
+     * 设计说明：
+     * 1. 缓存数据不设置物理TTL，设置逻辑过期时间
+     * 2. 查询时检查逻辑过期：
+     *    - 未过期：直接返回缓存数据
+     *    - 已过期：返回旧数据，同时触发异步重建
+     * 3. 使用互斥锁保证只有一个线程执行重建
+     *
+     * 适用场景：
+     * - 热点数据（如首页推荐、热门院校）
+     * - 对一致性要求不高，可接受短暂返回旧数据
+     */
+    @Override
+    public <T> T getWithLogicalExpire(String key, Class<T> clazz, Supplier<T> supplier, long expireSeconds) {
+        // 1. 查询缓存（带逻辑过期时间）
+        String redisValue = redisTemplate.opsForValue().get(key);
+
+        if (redisValue != null) {
+            // 解析逻辑过期数据
+            LogicalExpireCacheData<T> cacheData = JSON.parseObject(redisValue,
+                    new com.alibaba.fastjson2.TypeReference<LogicalExpireCacheData<T>>() {});
+
+            if (cacheData != null && cacheData.getData() != null) {
+                // 2. 检查是否逻辑过期
+                if (!cacheData.isExpired()) {
+                    // 未过期，直接返回
+                    log.debug("逻辑过期缓存命中（未过期）：key={}", key);
+                    // 回填本地缓存
+                    localCache.put(key, cacheData.getData());
+                    return cacheData.getData();
+                }
+
+                // 3. 已过期，返回旧数据，同时尝试异步重建
+                log.info("逻辑过期缓存已过期，返回旧数据并触发重建：key={}", key);
+
+                // 4. 尝试获取重建锁（只有获取到锁的线程才执行重建）
+                String rebuildLockKey = LOCK_PREFIX + "rebuild:" + key;
+                RLock rebuildLock = redissonClient.getLock(rebuildLockKey);
+
+                try {
+                    // 非阻塞尝试获取锁（立即返回结果）
+                    boolean locked = rebuildLock.tryLock(0, 10, TimeUnit.SECONDS);
+
+                    if (locked) {
+                        // 获取到锁，异步执行重建
+                        asyncRebuildCache(key, supplier, expireSeconds);
+                    } else {
+                        // 未获取到锁，说明已有其他线程在重建，直接返回旧数据
+                        log.debug("已有其他线程在重建缓存：key={}", key);
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("获取重建锁被中断：key={}", key);
+                } finally {
+                    // 注意：异步重建会在完成后释放锁
+                }
+
+                // 返回旧数据（保证服务可用）
+                return cacheData.getData();
+            }
+        }
+
+        // 5. 缓存不存在，需要首次加载
+        log.info("逻辑过期缓存不存在，首次加载：key={}", key);
+
+        // 首次加载使用分布式锁（防止并发击穿）
+        T data = getOrLoadWithLock(key, clazz, supplier, expireSeconds);
+
+        // 包装为逻辑过期数据存储
+        if (data != null) {
+            LogicalExpireCacheData<T> cacheData = LogicalExpireCacheData.of(data, expireSeconds);
+            redisTemplate.opsForValue().set(key, JSON.toJSONString(cacheData));
+            localCache.put(key, data);
+        }
+
+        return data;
+    }
+
+    /**
+     * 异步重建缓存
+     *
+     * 使用独立线程池执行重建，避免阻塞请求线程
+     */
+    @Override
+    public <T> void asyncRebuildCache(String key, Supplier<T> supplier, long expireSeconds) {
+        // 使用CompletableFuture异步执行
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                log.info("开始异步重建缓存：key={}", key);
+
+                // 1. 从数据源获取最新数据
+                T data = supplier.get();
+
+                if (data != null) {
+                    // 2. 包装为逻辑过期数据
+                    LogicalExpireCacheData<T> cacheData = LogicalExpireCacheData.of(data, expireSeconds);
+
+                    // 3. 更新Redis缓存（不设置物理过期）
+                    redisTemplate.opsForValue().set(key, JSON.toJSONString(cacheData));
+
+                    // 4. 更新本地缓存
+                    localCache.put(key, data);
+
+                    log.info("异步重建缓存完成：key={}", key);
+                } else {
+                    log.warn("异步重建缓存数据为空：key={}", key);
+                }
+
+            } catch (Exception e) {
+                log.error("异步重建缓存失败：key={}", key, e);
+            } finally {
+                // 5. 释放重建锁
+                String rebuildLockKey = LOCK_PREFIX + "rebuild:" + key;
+                RLock rebuildLock = redissonClient.getLock(rebuildLockKey);
+                if (rebuildLock.isHeldByCurrentThread()) {
+                    rebuildLock.unlock();
+                }
+            }
+        });
     }
 }

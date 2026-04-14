@@ -4,7 +4,7 @@ import com.gaokao.ai.agent.model.AgentRequest;
 import com.gaokao.ai.agent.model.AgentResponse;
 import com.gaokao.ai.tool.SkillTool;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,10 +17,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class SchoolInfoAgent implements GaokaoAgent {
 
-    private final ChatLanguageModel chatModel;
+    private final ChatModel chatModel;
     private final SkillTool skillTool;
 
-    public SchoolInfoAgent(ChatLanguageModel chatModel,
+    public SchoolInfoAgent(ChatModel chatModel,
                            SkillTool skillTool) {
         this.chatModel = chatModel;
         this.skillTool = skillTool;
@@ -42,7 +42,7 @@ public class SchoolInfoAgent implements GaokaoAgent {
 
         try {
             SchoolAssistant assistant = AiServices.builder(SchoolAssistant.class)
-                    .chatLanguageModel(chatModel)
+                    .chatModel(chatModel)
                     .tools(skillTool)
                     .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                     .systemMessageProvider(memoryId -> SYSTEM_PROMPT)

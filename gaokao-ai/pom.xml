@@ -102,11 +102,10 @@
             <version>2.1.1</version>
         </dependency>
 
-        <!-- Elasticsearch Client -->
+        <!-- Elasticsearch Client (版本由 langchain4j-elasticsearch 传递依赖管理) -->
         <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
-            <version>8.12.2</version>
         </dependency>
         
         <!-- Jackson Databind -->
