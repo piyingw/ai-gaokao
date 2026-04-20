@@ -52,7 +52,7 @@ public class ElasticsearchConfig {
         return builder.build();
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     public ElasticsearchClient elasticsearchClient(RestClient restClient) {
         ElasticsearchTransport transport = new RestClientTransport(
                 restClient, new JacksonJsonpMapper());

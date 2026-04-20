@@ -54,13 +54,13 @@ spring:
           max-idle: 8
           min-idle: 0
 
-  # PGVector 数据源配置（用于向量存储）
-  pgvector:
-    datasource:
-      driver-class-name: org.postgresql.Driver
-      url: jdbc:postgresql://localhost:5432/gaokao_vector
-      username: postgres
-      password: ${pgvector.password}
+  # PGVector 数据源配置（已注释，使用 Elasticsearch 作为向量数据库）
+  # pgvector:
+  #   datasource:
+  #     driver-class-name: org.postgresql.Driver
+  #     url: jdbc:postgresql://localhost:5432/gaokao_vector
+  #     username: postgres
+  #     password: ${pgvector.password}
 
   # QQ邮箱配置
   mail:

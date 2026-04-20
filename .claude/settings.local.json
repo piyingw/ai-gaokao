@@ -27,7 +27,19 @@
       "Bash(tail -100 \"C:\\\\\\\\Users\\\\\\\\30887\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--Javacode-ai-gaokao\\\\\\\\4e52481c-660f-48bb-96a9-2b44386e1fe2\\\\\\\\tasks\\\\\\\\bbqz04aaj.output\")",
       "Bash(tail -50 \"C:\\\\\\\\Users\\\\\\\\30887\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--Javacode-ai-gaokao\\\\\\\\4e52481c-660f-48bb-96a9-2b44386e1fe2\\\\\\\\tasks\\\\\\\\bqvzfm9gl.output\")",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:central.sonatype.com)"
+      "WebFetch(domain:central.sonatype.com)",
+      "Bash(mvn dependency:tree -pl gaokao-ai)",
+      "Bash(find . -name \"*.java\" -exec grep -l \"OpenAiChatModel\" {} \\\\;)",
+      "Bash(mvn dependency:tree -DincludeArtifactIds=langchain4j-elasticsearch,elasticsearch-java -pl gaokao-ai)",
+      "Bash(xargs -I{} jar tf {})",
+      "Bash(jar tf *)",
+      "Read(//c/Users/30887/.m2/repository/dev/langchain4j/langchain4j/**)",
+      "Bash(dir *)",
+      "WebFetch(domain:repo1.maven.org)",
+      "Bash(mvn test *)",
+      "WebFetch(domain:api.langchain4j.dev)",
+      "Bash(mvn spring-boot:run -pl gaokao-web -Dspring-boot.run.profiles=dev)",
+      "Bash(mvn install *)"
     ]
   }
 }

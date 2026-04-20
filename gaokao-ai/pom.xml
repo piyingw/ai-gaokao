@@ -52,11 +52,21 @@
             <artifactId>langchain4j-open-ai</artifactId>
         </dependency>
 
-        <!-- LangChain4j PGVector 向量存储 -->
+        <!-- PostgreSQL (for PGVector) - 已注释，使用 Elasticsearch 作为向量数据库 -->
+        <!--
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        -->
+
+        <!-- LangChain4j PGVector 向量存储 - 已注释，使用 Elasticsearch -->
+        <!--
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-pgvector</artifactId>
         </dependency>
+        -->
 
         <!-- LangChain4j Elasticsearch 向量存储 -->
         <dependency>
@@ -76,12 +86,6 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- PostgreSQL (for PGVector) -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-
         <!-- HikariCP (连接池) -->
         <dependency>
             <groupId>com.zaxxer</groupId>
@@ -93,6 +97,13 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- Jakarta Annotation API -->

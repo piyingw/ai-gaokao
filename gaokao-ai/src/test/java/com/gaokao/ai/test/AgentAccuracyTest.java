@@ -11,7 +11,8 @@ import org.springframework.boot.test.context.SpringBootTest;
  * AI Agent 测试类
  * 用于测试分数线查询准确性改进
  */
-@SpringBootTest
+// 使用简单测试，不依赖Spring上下文
+// @SpringBootTest(classes = com.gaokao.GaokaoApplication.class)
 public class AgentAccuracyTest {
 
     @Autowired

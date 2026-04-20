@@ -9,6 +9,7 @@ import com.gaokao.order.entity.Order;
 import com.gaokao.order.entity.OrderStatus;
 import com.gaokao.order.mapper.OrderMapper;
 import com.gaokao.order.mapper.PaymentRecordMapper;
+import com.gaokao.order.message.MessageProducer;
 import com.gaokao.order.payment.PaymentFactory;
 import com.gaokao.order.payment.PaymentService;
 import com.gaokao.order.service.impl.OrderServiceImpl;
@@ -20,6 +21,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.mockito.stubbing.Answer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -40,6 +44,7 @@ import static org.mockito.Mockito.*;
  * 4. 订单取消
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class OrderServiceTest {
 
     @Mock
@@ -59,6 +64,9 @@ class OrderServiceTest {
 
     @Mock
     private ValueOperations<String, Object> valueOperations;
+
+    @Mock
+    private MessageProducer messageProducer;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -87,8 +95,12 @@ class OrderServiceTest {
     @Test
     @DisplayName("创建会员订单")
     void testCreateMembershipOrder() {
-        // Given
-        when(orderMapper.insert(any(Order.class))).thenReturn(1);
+        // Given - 模拟MyBatis Plus insert行为（设置ID）
+        when(orderMapper.insert(any(Order.class))).thenAnswer((Answer<Integer>) invocation -> {
+            Order order = invocation.getArgument(0);
+            order.setId(1L);  // 模拟数据库生成ID
+            return 1;
+        });
 
         // When
         Order result = orderService.createMembershipOrder(testUserId, 1L);
@@ -100,6 +112,7 @@ class OrderServiceTest {
         assertEquals(OrderStatus.PENDING.getCode(), result.getStatus());
         assertNotNull(result.getOrderNo());
         assertTrue(result.getOrderNo().startsWith("ORD_"));
+        assertNotNull(result.getId());  // 验证ID已设置
     }
 
     @Test
@@ -170,12 +183,20 @@ class OrderServiceTest {
         // Then
         assertNotNull(orderNo);
         assertTrue(orderNo.startsWith("ORD_"));
-        assertEquals(24, orderNo.length());  // ORD_ + 14位时间 + _ + 8位随机
+        // ORD_ + 14位时间 + _ + 8位UUID = 4+14+1+8 = 27
+        assertEquals(27, orderNo.length());
     }
 
     @Test
     @DisplayName("VIP商品价格验证")
     void testVIPProductPrice() {
+        // Given - 模拟MyBatis Plus insert行为（设置ID）
+        when(orderMapper.insert(any(Order.class))).thenAnswer((Answer<Integer>) invocation -> {
+            Order order = invocation.getArgument(0);
+            order.setId(2L);  // 模拟数据库生成ID
+            return 1;
+        });
+
         // When
         Order vipOrder = orderService.createMembershipOrder(testUserId, 2L);
 

@@ -61,7 +61,10 @@ public class VectorStoreConfig {
      * Elasticsearch 向量存储
      * 适用于生产环境，支持大规模向量检索
      * 需要配置 elasticsearch.* 和 langchain4j.vectorstore.type=elasticsearch
+     *
+     * 注意：LangChain4j 1.13中部分builder方法已废弃，后续版本需更新为新API
      */
+    @SuppressWarnings("deprecation")
     @Bean
     @ConditionalOnProperty(name = "langchain4j.vectorstore.type", havingValue = "elasticsearch")
     public EmbeddingStore<TextSegment> elasticsearchEmbeddingStore() {

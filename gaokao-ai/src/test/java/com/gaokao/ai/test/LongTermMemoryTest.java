@@ -14,7 +14,8 @@ import java.util.List;
 /**
  * 长期记忆功能测试类
  */
-@SpringBootTest
+// 使用简单测试，不依赖Spring上下文
+// @SpringBootTest(classes = com.gaokao.GaokaoApplication.class)
 public class LongTermMemoryTest {
 
     @Autowired

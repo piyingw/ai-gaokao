@@ -3,15 +3,22 @@ package com.gaokao.ai.agent;
 import com.gaokao.ai.agent.model.AgentRequest;
 import com.gaokao.ai.agent.model.AgentResponse;
 import com.gaokao.ai.tool.SkillTool;
+import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.output.Response;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 政策问答 Agent
@@ -25,6 +32,9 @@ public class PolicyAgent implements GaokaoAgent {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final SkillTool skillTool;
+
+    private static final int MAX_RESULTS = 5;
+    private static final double MIN_SCORE_THRESHOLD = 0.6;
 
     public PolicyAgent(ChatModel chatModel,
                        EmbeddingModel embeddingModel,
@@ -51,15 +61,39 @@ public class PolicyAgent implements GaokaoAgent {
         log.info("PolicyAgent 处理请求：{}", request.getQuestion());
 
         try {
-            // 构建内容检索器（RAG）
+            // 先手动查询，检查是否有足够相关的内容
+            Response<Embedding> embeddingResponse = embeddingModel.embed(request.getQuestion());
+            Embedding queryEmbedding = embeddingResponse.content();
+
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(MAX_RESULTS)
+                    .build();
+
+            EmbeddingSearchResult<TextSegment> searchResult = embeddingStore.search(searchRequest);
+            List<EmbeddingMatch<TextSegment>> matches = searchResult.matches();
+
+            if (matches.isEmpty()) {
+                log.warn("向量库无数据");
+                return AgentResponse.failure(getName(), "暂无相关政策信息，请稍后再试");
+            }
+
+            // 检查最高分数是否满足阈值
+            double topScore = matches.get(0).score();
+            log.info("RAG检索: topScore={}, 结果数={}", topScore, matches.size());
+
+            if (topScore < MIN_SCORE_THRESHOLD) {
+                log.warn("检索结果相似度过低: topScore={}", topScore);
+                return AgentResponse.failure(getName(), "暂无相关政策信息，请尝试其他问题或使用网络搜索获取最新政策");
+            }
+
+            // 构建 AI Service with RAG
             EmbeddingStoreContentRetriever retriever = EmbeddingStoreContentRetriever.builder()
                     .embeddingStore(embeddingStore)
                     .embeddingModel(embeddingModel)
-                    .maxResults(5)
-                    .minScore(0.6)
+                    .maxResults(MAX_RESULTS)
                     .build();
 
-            // 构建 AI Service with RAG
             PolicyAssistant assistant = AiServices.builder(PolicyAssistant.class)
                     .chatModel(chatModel)
                     .tools(skillTool)
