@@ -9,9 +9,13 @@ import dev.langchain4j.service.AiServices;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * 学校信息 Agent
  * 提供院校信息查询、对比、分析服务
+ * 具备自主数据检索决策能力
  */
 @Slf4j
 @Component
@@ -20,8 +24,28 @@ public class SchoolInfoAgent implements GaokaoAgent {
     private final ChatModel chatModel;
     private final SkillTool skillTool;
 
-    public SchoolInfoAgent(ChatModel chatModel,
-                           SkillTool skillTool) {
+    // 增强的关键词匹配库
+    private static final List<String> HIGH_CONFIDENCE_KEYWORDS = Arrays.asList(
+            "大学信息", "院校信息", "学校详情", "大学详情", "院校详情",
+            "学校排名", "大学排名", "院校排名", "清华北大", "985大学",
+            "211大学", "双一流", "院校对比", "大学对比", "比较学校"
+    );
+
+    private static final List<String> MEDIUM_CONFIDENCE_KEYWORDS = Arrays.asList(
+            "大学", "学院", "院校", "学校", "排名", "对比", "比较",
+            "区别", "哪个好", "怎么样", "简介", "特色", "优势专业",
+            "王牌专业", "分数线", "录取分数", "历年分数", "最低分",
+            "最高分", "录取线", "投档线", "学费", "地址", "位置",
+            "在哪", "办学性质", "公办", "民办"
+    );
+
+    private static final List<String> SPECIFIC_SCHOOL_KEYWORDS = Arrays.asList(
+            "清华", "北大", "复旦", "交大", "浙大", "南大", "武大", "华科",
+            "中大", "川大", "西交", "哈工", "中科大", "北航", "同济",
+            "华东师大", "北师大", "南开", "天大", "东南", "厦大"
+    );
+
+    public SchoolInfoAgent(ChatModel chatModel, SkillTool skillTool) {
         this.chatModel = chatModel;
         this.skillTool = skillTool;
     }
@@ -62,10 +86,37 @@ public class SchoolInfoAgent implements GaokaoAgent {
     public boolean canHandle(String question) {
         if (question == null) return false;
         String lower = question.toLowerCase();
-        return lower.contains("大学") || lower.contains("学院") || lower.contains("院校")
-                || lower.contains("学校") || lower.contains("专业") || lower.contains("排名")
-                || lower.contains("简介") || lower.contains("特色") || lower.contains("对比")
-                || lower.contains("比较") || lower.contains("区别");
+
+        // 高置信度关键词直接匹配
+        for (String keyword : HIGH_CONFIDENCE_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                return true;
+            }
+        }
+
+        // 特定学校名称匹配
+        for (String keyword : SPECIFIC_SCHOOL_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                return true;
+            }
+        }
+
+        // 中置信度关键词匹配（需要2个以上匹配）
+        int mediumCount = 0;
+        for (String keyword : MEDIUM_CONFIDENCE_KEYWORDS) {
+            if (lower.contains(keyword)) {
+                mediumCount++;
+            }
+        }
+        if (mediumCount >= 2) {
+            return true;
+        }
+
+        // 分数线关键词 + 院校关键词组合
+        boolean hasScoreKeyword = lower.contains("分数") || lower.contains("分数线") || lower.contains("录取");
+        boolean hasSchoolKeyword = lower.contains("大学") || lower.contains("院校") || lower.contains("学校");
+
+        return hasScoreKeyword && hasSchoolKeyword;
     }
 
     /**
@@ -84,6 +135,37 @@ public class SchoolInfoAgent implements GaokaoAgent {
             3. 提供院校对比分析，帮助考生选择
             4. 解答专业相关问题，如专业介绍、就业方向等
             5. 查询并提供准确的历年分数线信息
+
+            ## 数据检索决策指南
+
+            你需要自主判断何时使用何种数据源，遵循以下优先级：
+
+            ### 数据源优先级
+            1. **本地数据库优先**（university-query-skill, major-query-skill, score-analysis-skill）
+               - 查询院校信息：university-query-skill
+               - 查询分数线：score-analysis-skill
+               - 查询专业信息：major-query-skill
+
+            2. **网络搜索补充**（web-search-skill）
+               - 当本地返回"未找到"或需要最新信息时使用
+               - 参数示例：{"query": "XX大学2024招生简章", "searchType": "university"}
+
+            ### 典型场景数据决策
+
+            | 用户请求 | 推荐技能 | 参数示例 |
+            |---------|---------|---------|
+            | "清华大学详情" | university-query-skill | operation: "detail", universityName: "清华" |
+            | "985大学名单" | university-query-skill | operation: "query", level: "985" |
+            | "清华分数线" | score-analysis-skill | operation: "history", universityName: "清华" |
+            | "计算机专业介绍" | major-query-skill | operation: "detail", majorName: "计算机" |
+            | "清华北大对比" | university-query-skill | 分别查询两个院校详情 |
+            | "某院校最新信息" | 先本地，后web-search | 本地失败时启用网络搜索 |
+
+            ### 检索结果验证
+            1. 执行本地数据库查询
+            2. 检查返回是否为"未找到"
+            3. 如果本地数据不足，使用web-search-skill
+            4. 网络搜索结果需注明来源并提醒用户核实
 
             你可以使用以下工具：
             - executeSkill: 通用技能执行工具，通过传入技能名称和参数来执行各种功能
